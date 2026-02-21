@@ -1,36 +1,50 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 
 /* ═══════════════════════════════════════════
-   VENTURA — Travel Planning App v2.1
-   Real data: Bucharest trip, Mar 7-9 2026
+   VENTURA v3.0 — Travel Planning App
+   Full prototype: auth, profiles, journal,
+   roles, invitations, trip wizard, memories
    ═══════════════════════════════════════════ */
 
-// ─── Design Tokens ───
 const C = {
   bg: "#FEFBF6", bgAlt: "#F7F3ED", white: "#FFFFFF",
   surface: "#FFFFFF", surfaceHover: "#FBF8F3",
   border: "#E8E2D9", borderLight: "#F0EBE3",
   primary: "#C4704B", primaryLight: "#F9EDE7", primaryDark: "#A85A38",
-  blue: "#2563EB", blueLight: "#EFF6FF", blueDark: "#1D4ED8",
+  blue: "#2563EB", blueLight: "#EFF6FF",
   sage: "#5F8B6A", sageLight: "#ECF4EE",
   coral: "#E8734A", coralLight: "#FEF0EB",
   gold: "#D4A853", goldLight: "#FDF8EC",
   purple: "#7C5CFC", purpleLight: "#F3F0FF",
   text: "#2C1810", textSec: "#6B5B4F", textDim: "#A09486",
-  danger: "#DC3545", dangerLight: "#FDF0F0",
+  danger: "#DC3545",
   shadow: "0 1px 3px rgba(44,24,16,0.06), 0 4px 12px rgba(44,24,16,0.04)",
   shadowMd: "0 2px 8px rgba(44,24,16,0.08), 0 8px 24px rgba(44,24,16,0.06)",
 };
+const F = "'Fraunces', serif";
+const fmt = n => n.toLocaleString("ro-RO");
 
-// ─── Home Screen Trips ───
-const ALL_TRIPS = [
-  { id: "bucharest", name: "Bucharest Discovery", dest: "Bucharest, Romania", dates: "Mar 7 – 9, 2026", travelers: 2, days: 3, status: "upcoming",
-    img: "https://images.unsplash.com/photo-1584646098378-0874589d76b1?w=600&h=300&fit=crop&q=80" },
-  { id: "japan", name: "Tokyo Adventure", dest: "Tokyo, Japan", dates: "May 10 – 18, 2026", travelers: 3, days: 8, status: "planning",
-    img: "https://images.unsplash.com/photo-1540959733332-eab4deabeeaf?w=600&h=300&fit=crop&q=80" },
-  { id: "lisbon", name: "Lisbon & Sintra", dest: "Lisbon, Portugal", dates: "Sep 2025", travelers: 2, days: 5, status: "past",
-    img: "https://images.unsplash.com/photo-1585208798174-6cedd86e019a?w=600&h=300&fit=crop&q=80" },
-];
+// ── Destination photo pools (sliding carousel) ──
+const DEST_PHOTOS = {
+  "Bucharest, Romania": [
+    "https://images.unsplash.com/photo-1584646098378-0874589d76b1?w=800&h=400&fit=crop&q=80",
+    "https://images.unsplash.com/photo-1585407925232-33158f7be498?w=800&h=400&fit=crop&q=80",
+    "https://images.unsplash.com/photo-1587974928442-77dc3e0dba72?w=800&h=400&fit=crop&q=80",
+    "https://images.unsplash.com/photo-1596379448498-e498b9e7ba0b?w=800&h=400&fit=crop&q=80",
+  ],
+  "Tokyo, Japan": [
+    "https://images.unsplash.com/photo-1540959733332-eab4deabeeaf?w=800&h=400&fit=crop&q=80",
+    "https://images.unsplash.com/photo-1493976040374-85c8e12f0c0e?w=800&h=400&fit=crop&q=80",
+    "https://images.unsplash.com/photo-1545569341-9eb8b30979d9?w=800&h=400&fit=crop&q=80",
+    "https://images.unsplash.com/photo-1528360983277-13d401cdc186?w=800&h=400&fit=crop&q=80",
+  ],
+  "Lisbon, Portugal": [
+    "https://images.unsplash.com/photo-1585208798174-6cedd86e019a?w=800&h=400&fit=crop&q=80",
+    "https://images.unsplash.com/photo-1536663815808-535e2280d2c2?w=800&h=400&fit=crop&q=80",
+    "https://images.unsplash.com/photo-1558618666-fcd25c85f82e?w=800&h=400&fit=crop&q=80",
+    "https://images.unsplash.com/photo-1555881400-74d7acaacd8b?w=800&h=400&fit=crop&q=80",
+  ],
+};
 
 const INSPIRATION = [
   { name: "Kyoto", img: "https://images.unsplash.com/photo-1493976040374-85c8e12f0c0e?w=240&h=320&fit=crop&q=80" },
@@ -40,386 +54,364 @@ const INSPIRATION = [
   { name: "Morocco", img: "https://images.unsplash.com/photo-1539020140153-e479b8c22e70?w=240&h=320&fit=crop&q=80" },
 ];
 
-// ─── Trip Data ───
-const TRIP = {
-  name: "Bucharest Discovery",
-  dest: "Bucharest, Romania",
-  dates: "Mar 7 – 9, 2026",
-  heroImg: "https://images.unsplash.com/photo-1584646098378-0874589d76b1?w=800&h=280&fit=crop&q=80",
-  travelers: [
-    { name: "Bartek", avatar: "B", color: C.blue },
-    { name: "Anna", avatar: "A", color: C.coral },
-  ],
-  days: [
-    {
-      day: 1, date: "Sat, Mar 7", title: "Historic Center Walk",
-      img: "https://images.unsplash.com/photo-1585407925232-33158f7be498?w=600&h=200&fit=crop&q=80",
-      weather: { hi: 12, lo: 4, icon: "sun", desc: "Clear skies" },
-      items: [
-        { time: "09:00", name: "Ogrody Cismigiu", desc: "Oldest park in Bucharest, XIX century landscaped gardens with lake and bridges", type: "sight", duration: "1h", cost: 0, rating: 4.5 },
-        { time: "10:15", name: "Palatul Kretzulescu", desc: "1902-04 French Renaissance mansion by Petre Antonescu, UNESCO heritage site", type: "sight", duration: "30min", cost: 0, rating: 4.3 },
-        { time: "11:00", name: "Cercul Militar National", desc: "Neoclassical military circle palace, 1911-1923, with themed marble halls", type: "sight", duration: "45min", cost: 0, rating: 4.6 },
-        { time: "12:00", name: "Lunch: Caru' cu Bere", desc: "Iconic 1879 beer hall with Neo-Gothic interiors and Romanian cuisine", type: "food", duration: "1.5h", cost: 120, rating: 4.4 },
-        { time: "14:00", name: "Muzeum Sztuki Rumunii", desc: "National Art Museum in former Royal Palace, Romanian & European collections", type: "museum", duration: "2h", cost: 30, rating: 4.5 },
-        { time: "16:30", name: "Ateneul Roman", desc: "1888 concert hall, neoclassical rotunda with 25-scene Romanian history fresco", type: "sight", duration: "45min", cost: 25, rating: 4.8 },
-        { time: "17:30", name: "Palatul CEC", desc: "1897-1900 savings bank HQ, eclectic glass-domed Beaux-Arts landmark", type: "sight", duration: "20min", cost: 0, rating: 4.4 },
-        { time: "18:00", name: "Carturesti Carusel", desc: "Six-level Carousel of Light bookstore in restored 1903 Chrissoveloni bank", type: "shopping", duration: "45min", cost: 50, rating: 4.7 },
-        { time: "19:00", name: "Umbrellas Street", desc: "Instagram-famous alley with colorful umbrella canopy in Old Town", type: "sight", duration: "15min", cost: 0, rating: 4.2 },
-        { time: "19:30", name: "Monastirea Stavropoleos", desc: "1724 Brancovenesc-style monastery with carved stone facade and peaceful courtyard", type: "sight", duration: "30min", cost: 0, rating: 4.7 },
-        { time: "20:15", name: "Dinner: Grand Cafe Van Gogh", desc: "Atmospheric Old Town restaurant, Romanian-French fusion", type: "food", duration: "1.5h", cost: 180, rating: 4.3 },
-      ]
-    },
-    {
-      day: 2, date: "Sun, Mar 8", title: "Castles of Transylvania",
-      img: "https://images.unsplash.com/photo-1596379448498-e498b9e7ba0b?w=600&h=200&fit=crop&q=80",
-      weather: { hi: 9, lo: 1, icon: "cloud", desc: "Partly cloudy" },
-      items: [
-        { time: "07:00", name: "Departure from Bucharest", desc: "Organized day tour pickup from hotel, ~2h drive to Sinaia", type: "transport", duration: "2h", cost: 0, rating: 0 },
-        { time: "09:30", name: "Castelul Peles, Sinaia", desc: "Neo-Renaissance royal residence with 160 rooms, stunning alpine setting", type: "sight", duration: "2h", cost: 80, rating: 4.8 },
-        { time: "12:00", name: "Lunch in Sinaia", desc: "Mountain town restaurant, traditional Romanian dishes", type: "food", duration: "1h", cost: 90, rating: 4.2 },
-        { time: "13:30", name: "Castelul Bran", desc: "Medieval fortress linked to Dracula legend, Queen Marie's residence", type: "sight", duration: "1.5h", cost: 60, rating: 4.3 },
-        { time: "15:30", name: "Brasov Old Town", desc: "Saxon medieval town with colorful square and Black Church", type: "sight", duration: "2h", cost: 15, rating: 4.6 },
-        { time: "18:00", name: "Return to Bucharest", desc: "~2.5h drive back, arrive around 20:30", type: "transport", duration: "2.5h", cost: 0, rating: 0 },
-        { time: "21:00", name: "Light dinner near hotel", desc: "Quick bite at Energiea or local bistro", type: "food", duration: "1h", cost: 80, rating: 4.1 },
-      ]
-    },
-    {
-      day: 3, date: "Mon, Mar 9", title: "Parliament & Farewell",
-      img: "https://images.unsplash.com/photo-1587974928442-77dc3e0dba72?w=600&h=200&fit=crop&q=80",
-      weather: { hi: 14, lo: 5, icon: "partlysunny", desc: "Mostly sunny" },
-      items: [
-        { time: "09:00", name: "Park Izvor", desc: "Green space opposite Parliament Palace, best frontal views", type: "sight", duration: "30min", cost: 0, rating: 4.1 },
-        { time: "10:00", name: "Palatul Parlamentului", desc: "World's 2nd largest admin building, built 1980s, marble halls & terrace", type: "sight", duration: "2h", cost: 50, rating: 4.6 },
-        { time: "12:30", name: "Dealul Patriarhiei", desc: "Patriarchal Hill with Romanian Orthodox cathedral, panoramic views", type: "sight", duration: "30min", cost: 0, rating: 4.4 },
-        { time: "13:15", name: "Lunch: Lacrimi si Sfinti", desc: "Award-winning modern Romanian cuisine in Old Town", type: "food", duration: "1.5h", cost: 150, rating: 4.6 },
-        { time: "15:00", name: "Palatul Bragadiru", desc: "1894-1900 industrialist's palace, Neo-Romanian/Gothic event venue", type: "sight", duration: "45min", cost: 0, rating: 4.3 },
-        { time: "16:00", name: "Final stroll: Calea Victoriei", desc: "Last walk along Bucharest's grand boulevard, coffee stop", type: "sight", duration: "1h", cost: 25, rating: 4.5 },
-        { time: "17:30", name: "Bolt to Airport (OTP)", desc: "~40min ride to Henri Coanda International", type: "transport", duration: "45min", cost: 60, rating: 0 },
-      ]
-    },
-  ],
+// ── User & Roles System ──
+const ROLES = {
+  admin:     { label: "Admin",     color: C.danger, perms: ["edit_trip","manage_users","delete_trip","invite","edit_budget","journal","view_all","manage_roles"] },
+  user:      { label: "Traveler",  color: C.blue,   perms: ["edit_trip","invite","edit_budget","journal","view_all"] },
+  companion: { label: "Companion", color: C.sage,   perms: ["edit_trip","edit_budget","journal","view_all"] },
+  observer:  { label: "Observer",  color: C.gold,   perms: ["view_all"] },
+  guest:     { label: "Guest",     color: C.textDim,perms: ["view_all"] },
 };
 
-const PACKING = {
-  "Clothing": [
-    { item: "Warm layers (fleece/sweater)", qty: 3, packed: true, person: "All", ai: false },
-    { item: "Winter jacket / coat", qty: 1, packed: true, person: "All", ai: true },
-    { item: "Comfortable walking shoes", qty: 1, packed: true, person: "All", ai: false },
-    { item: "Scarf & gloves", qty: 1, packed: false, person: "All", ai: true },
-    { item: "Jeans / warm trousers", qty: 3, packed: false, person: "All", ai: false },
-    { item: "Rain jacket (light)", qty: 1, packed: false, person: "All", ai: true },
-    { item: "Underwear & socks", qty: 4, packed: true, person: "All", ai: false },
-    { item: "Smart casual outfit", qty: 1, packed: false, person: "All", ai: false },
-  ],
-  "Toiletries": [
-    { item: "Toothbrush & toothpaste", qty: 2, packed: false, person: "All", ai: false },
-    { item: "Moisturizer (cold weather)", qty: 1, packed: false, person: "All", ai: true },
-    { item: "Lip balm", qty: 1, packed: false, person: "All", ai: true },
-    { item: "Hand sanitizer", qty: 1, packed: true, person: "All", ai: false },
-  ],
-  "Electronics": [
-    { item: "Phone chargers", qty: 2, packed: true, person: "All", ai: false },
-    { item: "Power bank", qty: 1, packed: true, person: "Bartek", ai: false },
-    { item: "EU plug adapter", qty: 1, packed: false, person: "Bartek", ai: true },
-    { item: "Camera + memory cards", qty: 1, packed: false, person: "Anna", ai: false },
-    { item: "Earbuds / headphones", qty: 2, packed: false, person: "All", ai: false },
-  ],
-  "Documents": [
-    { item: "ID cards / passports", qty: 2, packed: false, person: "Bartek", ai: false },
-    { item: "Booking confirmations", qty: 1, packed: false, person: "Bartek", ai: false },
-    { item: "Travel insurance docs", qty: 1, packed: false, person: "Bartek", ai: false },
-    { item: "Castle tour tickets", qty: 2, packed: false, person: "Bartek", ai: true },
-  ],
-};
-
-const EXPENSES = [
-  { id: 1, name: "Hotel Marmorosch Bucharest", cat: "Accommodation", amount: 1200, payer: "Bartek", date: "Mar 7" },
-  { id: 2, name: "Lunch: Caru' cu Bere", cat: "Food", amount: 120, payer: "Anna", date: "Mar 7" },
-  { id: 3, name: "Museum & Athenaeum tickets", cat: "Activities", amount: 55, payer: "Bartek", date: "Mar 7" },
-  { id: 4, name: "Carturesti Carusel books", cat: "Shopping", amount: 50, payer: "Anna", date: "Mar 7" },
-  { id: 5, name: "Dinner: Grand Cafe Van Gogh", cat: "Food", amount: 180, payer: "Bartek", date: "Mar 7" },
-  { id: 6, name: "Transylvania day tour (2 pax)", cat: "Activities", amount: 600, payer: "Bartek", date: "Mar 8" },
-  { id: 7, name: "Peles + Bran tickets", cat: "Activities", amount: 140, payer: "Anna", date: "Mar 8" },
-  { id: 8, name: "Lunch Sinaia", cat: "Food", amount: 90, payer: "Anna", date: "Mar 8" },
-  { id: 9, name: "Brasov souvenirs", cat: "Shopping", amount: 80, payer: "Anna", date: "Mar 8" },
-  { id: 10, name: "Parliament Palace tour", cat: "Activities", amount: 50, payer: "Bartek", date: "Mar 9" },
-  { id: 11, name: "Lunch: Lacrimi si Sfinti", cat: "Food", amount: 150, payer: "Bartek", date: "Mar 9" },
-  { id: 12, name: "Bolt to airport", cat: "Transport", amount: 60, payer: "Bartek", date: "Mar 9" },
+const USERS_DB = [
+  { id: "u1", name: "Bartek", email: "bartek@ventura.app", avatar: "B", color: C.blue, role: "admin",
+    prefs: { currency: "PLN", tempUnit: "C", dietaryNeeds: "None", travelStyle: "Cultural Explorer", languages: ["PL","EN","JP"], homeAirport: "GDN", pacePreference: "Moderate — balance sights & rest" } },
+  { id: "u2", name: "Anna", email: "anna@ventura.app", avatar: "A", color: C.coral, role: "user",
+    prefs: { currency: "PLN", tempUnit: "C", dietaryNeeds: "Vegetarian-friendly", travelStyle: "Foodie & Culture", languages: ["PL","EN"], homeAirport: "GDN", pacePreference: "Active — maximize experiences" } },
+  { id: "u3", name: "Marek", email: "marek@gmail.com", avatar: "M", color: C.purple, role: "observer",
+    prefs: { currency: "PLN", tempUnit: "C", travelStyle: "Adventurer", languages: ["PL","EN"], homeAirport: "WAW" } },
 ];
 
-const INIT_BUDGET = { total: 3500, Accommodation: 1400, Food: 800, Activities: 700, Shopping: 300, Transport: 300 };
-const RON_PLN = 0.93;
-const CAT_C = { Accommodation: C.purple, Food: C.coral, Activities: C.blue, Shopping: C.gold, Transport: C.sage };
+// ── Trip Data ──
+const INIT_TRIPS = [
+  { id: "bucharest", name: "Bucharest Discovery", dest: "Bucharest, Romania", dates: "Mar 7 – 9, 2026", travelers: ["u1","u2"], observers: ["u3"], days: 3, status: "upcoming",
+    heroImg: "https://images.unsplash.com/photo-1584646098378-0874589d76b1?w=800&h=280&fit=crop&q=80",
+    budget: { total: 3500, Accommodation: 1400, Food: 800, Activities: 700, Shopping: 300, Transport: 300 },
+    completeness: 92,
+    journal: [
+      { id: "j1", date: "Feb 28", author: "u1", type: "text", content: "Booked the Transylvania day tour! Can't wait to see Peleș Castle. Anna found an amazing restaurant for the last day — Lacrimi și Sfinți." },
+      { id: "j2", date: "Mar 1", author: "u2", type: "text", content: "Packed my camera bag — bringing the 35mm and 85mm lenses. Bucharest architecture is going to be incredible to photograph." },
+    ],
+    memories: null,
+    dayData: [
+      { day: 1, date: "Sat, Mar 7", title: "Historic Center Walk", img: "https://images.unsplash.com/photo-1585407925232-33158f7be498?w=600&h=200&fit=crop&q=80", weather: { hi: 12, lo: 4, icon: "sun" },
+        items: [
+          { time: "09:00", name: "Ogrody Cismigiu", desc: "Oldest park in Bucharest, XIX century gardens", type: "sight", duration: "1h", cost: 0, rating: 4.5 },
+          { time: "10:15", name: "Palatul Kretzulescu", desc: "French Renaissance mansion, UNESCO site", type: "sight", duration: "30min", cost: 0, rating: 4.3 },
+          { time: "12:00", name: "Lunch: Caru' cu Bere", desc: "Iconic 1879 beer hall, Romanian cuisine", type: "food", duration: "1.5h", cost: 120, rating: 4.4 },
+          { time: "14:00", name: "Muzeum Sztuki Rumunii", desc: "National Art Museum in Royal Palace", type: "museum", duration: "2h", cost: 30, rating: 4.5 },
+          { time: "16:30", name: "Ateneul Roman", desc: "1888 neoclassical concert hall", type: "sight", duration: "45min", cost: 25, rating: 4.8 },
+          { time: "18:00", name: "Carturesti Carusel", desc: "Six-level bookstore in restored bank", type: "shopping", duration: "45min", cost: 50, rating: 4.7 },
+          { time: "20:15", name: "Dinner: Grand Cafe Van Gogh", desc: "Romanian-French fusion, Old Town", type: "food", duration: "1.5h", cost: 180, rating: 4.3 },
+        ]},
+      { day: 2, date: "Sun, Mar 8", title: "Castles of Transylvania", img: "https://images.unsplash.com/photo-1596379448498-e498b9e7ba0b?w=600&h=200&fit=crop&q=80", weather: { hi: 9, lo: 1, icon: "cloud" },
+        items: [
+          { time: "07:00", name: "Departure from Bucharest", desc: "~2h drive to Sinaia", type: "transport", duration: "2h", cost: 0 },
+          { time: "09:30", name: "Castelul Peles", desc: "Neo-Renaissance royal residence, 160 rooms", type: "sight", duration: "2h", cost: 80, rating: 4.8 },
+          { time: "12:00", name: "Lunch in Sinaia", desc: "Mountain restaurant, traditional food", type: "food", duration: "1h", cost: 90, rating: 4.2 },
+          { time: "13:30", name: "Castelul Bran", desc: "Dracula's castle, medieval fortress", type: "sight", duration: "1.5h", cost: 60, rating: 4.3 },
+          { time: "15:30", name: "Brasov Old Town", desc: "Saxon medieval town, Black Church", type: "sight", duration: "2h", cost: 15, rating: 4.6 },
+          { time: "18:00", name: "Return to Bucharest", desc: "~2.5h drive back", type: "transport", duration: "2.5h", cost: 0 },
+        ]},
+      { day: 3, date: "Mon, Mar 9", title: "Parliament & Farewell", img: "https://images.unsplash.com/photo-1587974928442-77dc3e0dba72?w=600&h=200&fit=crop&q=80", weather: { hi: 14, lo: 5, icon: "partlysunny" },
+        items: [
+          { time: "10:00", name: "Palatul Parlamentului", desc: "World's 2nd largest building", type: "sight", duration: "2h", cost: 50, rating: 4.6 },
+          { time: "13:15", name: "Lunch: Lacrimi si Sfinti", desc: "Award-winning modern Romanian", type: "food", duration: "1.5h", cost: 150, rating: 4.6 },
+          { time: "15:00", name: "Palatul Bragadiru", desc: "1900s industrialist palace", type: "sight", duration: "45min", cost: 0, rating: 4.3 },
+          { time: "16:00", name: "Final stroll: Calea Victoriei", desc: "Grand boulevard, coffee stop", type: "sight", duration: "1h", cost: 25, rating: 4.5 },
+          { time: "17:30", name: "Bolt to Airport", desc: "~40min to OTP", type: "transport", duration: "45min", cost: 60 },
+        ]},
+    ],
+    expenses: [
+      { id: 1, name: "Hotel Marmorosch", cat: "Accommodation", amount: 1200, payer: "u1", date: "Mar 7" },
+      { id: 2, name: "Caru' cu Bere", cat: "Food", amount: 120, payer: "u2", date: "Mar 7" },
+      { id: 3, name: "Museum tickets", cat: "Activities", amount: 55, payer: "u1", date: "Mar 7" },
+      { id: 4, name: "Transylvania tour", cat: "Activities", amount: 600, payer: "u1", date: "Mar 8" },
+      { id: 5, name: "Lunch: Lacrimi si Sfinti", cat: "Food", amount: 150, payer: "u1", date: "Mar 9" },
+      { id: 6, name: "Bolt to airport", cat: "Transport", amount: 60, payer: "u1", date: "Mar 9" },
+    ],
+    packing: {
+      "Clothing": [{ item: "Warm layers", qty: 3, packed: true, ai: false }, { item: "Winter jacket", qty: 1, packed: true, ai: true }, { item: "Walking shoes", qty: 1, packed: true, ai: false }, { item: "Scarf & gloves", qty: 1, packed: false, ai: true }],
+      "Electronics": [{ item: "Phone chargers", qty: 2, packed: true, ai: false }, { item: "Power bank", qty: 1, packed: true, ai: false }, { item: "EU adapter", qty: 1, packed: false, ai: true }],
+      "Documents": [{ item: "ID cards", qty: 2, packed: false, ai: false }, { item: "Booking confirmations", qty: 1, packed: false, ai: false }, { item: "Castle tickets", qty: 2, packed: false, ai: true }],
+    },
+    deals: [
+      { name: "Marmorosch Bucharest", price: "€89/night", partner: "Booking.com", pColor: "#003580", url: "https://www.booking.com/hotel/ro/marmorosch-bucharest-autograph-collection.html" },
+      { name: "Transylvania Day Tour", price: "€45/pp", partner: "GetYourGuide", pColor: "#FF5533", url: "https://www.getyourguide.com/bucharest-l347/from-bucharest-transylvania-castles-full-day-tour-t66866/" },
+      { name: "Parliament Skip-the-Line", price: "€12/pp", partner: "Viator", pColor: "#5B1FA8", url: "https://www.viator.com/tours/Bucharest/Palace-of-Parliament-Skip-the-Line-Ticket-and-Guided-Tour/d22407-41714P2" },
+    ],
+  },
+  { id: "japan", name: "Tokyo Adventure", dest: "Tokyo, Japan", dates: "May 10 – 18, 2026", travelers: ["u1","u2"], observers: [], days: 8, status: "planning",
+    heroImg: "https://images.unsplash.com/photo-1540959733332-eab4deabeeaf?w=800&h=280&fit=crop&q=80",
+    budget: { total: 15000 }, completeness: 28,
+    journal: [], memories: null, dayData: [], expenses: [], packing: {}, deals: [],
+    planningTips: [
+      { icon: "🏨", title: "Book accommodation", desc: "8 nights needed. Shinjuku or Shibuya area recommended.", done: false, priority: "high" },
+      { icon: "✈️", title: "Book flights GDN → NRT", desc: "Check LOT via WAW or Finnair via HEL. Best prices 3-4 months ahead.", done: false, priority: "high" },
+      { icon: "🚄", title: "Get Japan Rail Pass", desc: "7-day JR Pass (~¥50,000) if doing day trips to Kamakura/Nikko.", done: false, priority: "medium" },
+      { icon: "📱", title: "Order eSIM", desc: "Ubigi or Airalo eSIM cheapest option.", done: false, priority: "medium" },
+      { icon: "🗺️", title: "Plan daily itinerary", desc: "8 days to fill! Asakusa, Shibuya, Akihabara, Harajuku, teamLab.", done: false, priority: "medium" },
+      { icon: "🍣", title: "Restaurant reservations", desc: "Book popular spots 1-2 months ahead. Try TableAll.", done: false, priority: "low" },
+      { icon: "🎒", title: "Create packing list", desc: "May in Tokyo: 18-25°C, rainy season starts late May.", done: false, priority: "low" },
+    ],
+  },
+  { id: "lisbon", name: "Lisbon & Sintra", dest: "Lisbon, Portugal", dates: "Sep 12 – 16, 2025", travelers: ["u1","u2"], observers: [], days: 5, status: "past",
+    heroImg: "https://images.unsplash.com/photo-1585208798174-6cedd86e019a?w=800&h=280&fit=crop&q=80",
+    budget: { total: 5000 }, completeness: 100,
+    journal: [
+      { id: "lj1", date: "Sep 12", author: "u1", type: "text", content: "Arrived in Lisbon! The light here is unreal — golden hour over the Tagus river from the Alfama viewpoint. Had amazing pastéis de nata at Pastéis de Belém." },
+      { id: "lj2", date: "Sep 13", author: "u2", type: "text", content: "Sintra was a fairytale! Pena Palace colors are even more vivid in person. The hike through the forest to the Moorish Castle was magical." },
+      { id: "lj3", date: "Sep 14", author: "u1", type: "text", content: "Best food day: breakfast at Time Out Market, lunch at Cervejaria Ramiro (the garlic prawns!!!), sunset at LX Factory with craft beer." },
+      { id: "lj4", date: "Sep 15", author: "u2", type: "text", content: "Took the iconic Tram 28 through Alfama — crowded but worth it for the views. Found an amazing tile shop in Mouraria." },
+    ],
+    memories: {
+      totalSpent: 4650,
+      topMoments: ["Sunset from Miradouro da Graça", "Pastéis de Belém queue at 8am", "Pena Palace gardens", "LX Factory bookshop"],
+      stats: { stepsTaken: "78,400", photosShared: 142, placesVisited: 28, mealsEaten: 15 },
+      highlights: [
+        { title: "Best meal", value: "Cervejaria Ramiro — garlic prawns", icon: "🍽️" },
+        { title: "Most walked day", value: "Day 2: Sintra — 22,800 steps", icon: "🚶" },
+        { title: "Best photo spot", value: "Miradouro da Senhora do Monte", icon: "📸" },
+        { title: "Biggest surprise", value: "LX Factory — didn't expect to love it", icon: "✨" },
+        { title: "Would do again", value: "Alfama at sunset, every single time", icon: "💛" },
+      ],
+      budgetSummary: { planned: 5000, actual: 4650, underBudget: true },
+    },
+    dayData: [
+      { day: 1, date: "Fri, Sep 12", title: "Arrival & Alfama", img: "https://images.unsplash.com/photo-1585208798174-6cedd86e019a?w=600&h=200&fit=crop&q=80", weather: { hi: 28, lo: 18, icon: "sun" }, items: [
+        { time: "14:00", name: "Check-in: Hotel Alfama", type: "sight", duration: "30min", cost: 0, rating: 4.5 },
+        { time: "15:00", name: "Miradouro da Graça", type: "sight", duration: "45min", cost: 0, rating: 4.8 },
+        { time: "16:00", name: "Walk through Alfama", type: "sight", duration: "2h", cost: 0, rating: 4.7 },
+        { time: "19:00", name: "Taberna da Rua das Flores", type: "food", duration: "2h", cost: 120, rating: 4.6 },
+      ]},
+    ],
+    expenses: [
+      { id: 1, name: "Hotel Alfama", cat: "Accommodation", amount: 1800, payer: "u1", date: "Sep 12" },
+      { id: 2, name: "Cervejaria Ramiro", cat: "Food", amount: 180, payer: "u2", date: "Sep 14" },
+    ],
+    packing: {}, deals: [],
+  },
+];
+
 const CAT_I = { Accommodation: "🏨", Food: "🍽️", Activities: "🎟️", Shopping: "🛍️", Transport: "🚗" };
-const PACK_I = { Clothing: "👕", Toiletries: "🧴", Electronics: "📱", Documents: "📄" };
-
-const CHAT = [
-  { from: "Bartek", text: "Zarezerwowa\u0142em wycieczk\u0119 na Transylwani\u0119 na niedziel\u0119!", time: "Feb 28, 18:32", color: C.blue },
-  { from: "Anna", text: "Super! A bilety na Pa\u0142ac Parlamentu trzeba wcze\u015Bniej?", time: "Feb 28, 18:45", color: C.coral },
-  { from: "Bartek", text: "Tak, kupi\u0142em online na poniedzia\u0142ek 10:00.", time: "Feb 28, 19:01", color: C.blue },
-  { from: "Anna", text: "Doda\u0142am Lacrimi \u0219i Sfin\u021Bi na lunch, pono\u0107 jest genialne!", time: "Mar 1, 10:15", color: C.coral },
-  { from: "Bartek", text: "Widzia\u0142em reviews \u2014 4.6. Na sobot\u0119 wieczorem Van Gogh?", time: "Mar 1, 10:22", color: C.blue },
-  { from: "Anna", text: "Tak! I koniecznie C\u0103rture\u0219ti Carusel \u2014 wygl\u0105da magicznie", time: "Mar 1, 10:30", color: C.coral },
-];
-
-const DEALS = [
-  { name: "Marmorosch Bucharest, Autograph Collection", type: "Hotel", price: "\u20AC89/night", rating: 4.7, partner: "Booking.com", pColor: "#003580",
-    url: "https://www.booking.com/hotel/ro/marmorosch-bucharest-autograph-collection.html",
-    desc: "5-star heritage hotel in former bank HQ, Old Town. Spa & rooftop bar.",
-    img: "https://images.unsplash.com/photo-1566073771259-6a8506099945?w=120&h=120&fit=crop&q=80" },
-  { name: "Transylvania Day Tour (Peles + Bran + Brasov)", type: "Activity", price: "\u20AC45/person", rating: 4.6, partner: "GetYourGuide", pColor: "#FF5533",
-    url: "https://www.getyourguide.com/bucharest-l347/from-bucharest-transylvania-castles-full-day-tour-t66866/",
-    desc: "Full-day guided tour incl. Sinaia, Bran Castle & Brasov Old Town.",
-    img: "https://images.unsplash.com/photo-1596379448498-e498b9e7ba0b?w=120&h=120&fit=crop&q=80" },
-  { name: "Parliament Palace Skip-the-Line", type: "Activity", price: "\u20AC12/person", rating: 4.5, partner: "Viator", pColor: "#5B1FA8",
-    url: "https://www.viator.com/tours/Bucharest/Palace-of-Parliament-Skip-the-Line-Ticket-and-Guided-Tour/d22407-41714P2",
-    desc: "2-hour guided tour, world's 2nd largest building. English available.",
-    img: "https://images.unsplash.com/photo-1587974928442-77dc3e0dba72?w=120&h=120&fit=crop&q=80" },
-  { name: "Bucharest Airport Private Transfer", type: "Transfer", price: "\u20AC18 one-way", rating: 4.8, partner: "Booking.com", pColor: "#003580",
-    url: "https://www.booking.com/taxi/",
-    desc: "Pre-booked sedan, meet & greet at arrivals. Fixed price.",
-    img: "https://images.unsplash.com/photo-1449965408869-ecd309a4b2eb?w=120&h=120&fit=crop&q=80" },
-  { name: "WizzAir GDN \u2192 OTP", type: "Flight", price: "from \u20AC29", rating: 4.2, partner: "Skyscanner", pColor: "#0770E3",
-    url: "https://www.skyscanner.net/transport/flights/gdn/buh/",
-    desc: "Direct flights Gdansk to Bucharest. WizzAir and Ryanair options.",
-    img: "https://images.unsplash.com/photo-1436491865332-7a61a109db05?w=120&h=120&fit=crop&q=80" },
-];
-
-const REVIEWS = [
-  { place: "Castelul Peles", rating: 5, text: "One of Europe's most beautiful castles. Book the full tour.", author: "TravelBlogger22", date: "Jan 2026" },
-  { place: "Carturesti Carusel", rating: 5, text: "Breathtaking space. Get coffee on top floor for the best view.", author: "BookLover_EU", date: "Feb 2026" },
-  { place: "Ateneul Roman", rating: 5, text: "World-class acoustics. The interior fresco alone is worth the visit.", author: "ClassicMusicFan", date: "Dec 2025" },
-  { place: "Palatul Parlamentului", rating: 4, text: "Monumental and sobering. Terrace views are the highlight.", author: "HistoryNerd99", date: "Jan 2026" },
-];
-
-// ─── Helpers ───
-const fmt = n => n.toLocaleString("ro-RO");
-const fP = n => Math.round(n * RON_PLN);
-const tC = { sight: C.blue, food: C.coral, museum: C.purple, shopping: C.gold, transport: C.sage };
 const tE = { sight: "📍", food: "🍽️", museum: "🖼️", shopping: "🛍️", transport: "🚌" };
-const WI = ({ t, s = 18 }) => {
-  if (t === "sun") return <span style={{ fontSize: s }}>☀️</span>;
-  if (t === "cloud") return <span style={{ fontSize: s }}>⛅</span>;
-  if (t === "rain") return <span style={{ fontSize: s }}>🌧️</span>;
-  return <span style={{ fontSize: s }}>🌤️</span>;
-};
+const WI = ({ t }) => t === "sun" ? <span>☀️</span> : t === "cloud" ? <span>⛅</span> : t === "rain" ? <span>🌧️</span> : <span>🌤️</span>;
 
-// ─── Components ───
+// ── Shared Components ──
 const Pill = ({ children, color = C.primary, active, onClick }) => (
-  <button onClick={onClick} style={{
-    padding: "7px 16px", borderRadius: 99, fontSize: 13, fontWeight: 500,
-    background: active ? color : "transparent", color: active ? "#fff" : C.textSec,
-    border: active ? "none" : `1.5px solid ${C.border}`, cursor: "pointer",
-    transition: "all 0.2s", fontFamily: "inherit", whiteSpace: "nowrap",
-  }}>{children}</button>
+  <button onClick={onClick} style={{ padding: "7px 16px", borderRadius: 99, fontSize: 13, fontWeight: 500, background: active ? color : "transparent", color: active ? "#fff" : C.textSec, border: active ? "none" : `1.5px solid ${C.border}`, cursor: "pointer", transition: "all 0.2s", fontFamily: "inherit", whiteSpace: "nowrap" }}>{children}</button>
 );
-
 const Card = ({ children, style: sx, onClick, hover = true }) => (
-  <div onClick={onClick} style={{
-    background: C.white, borderRadius: 16, border: `1px solid ${C.borderLight}`,
-    boxShadow: C.shadow, transition: "all 0.2s", cursor: onClick ? "pointer" : "default", ...sx,
-  }}
-  onMouseEnter={e => { if (hover && onClick) { e.currentTarget.style.boxShadow = C.shadowMd; e.currentTarget.style.transform = "translateY(-1px)"; }}}
-  onMouseLeave={e => { if (hover && onClick) { e.currentTarget.style.boxShadow = C.shadow; e.currentTarget.style.transform = "translateY(0)"; }}}
-  >{children}</div>
+  <div onClick={onClick} style={{ background: C.white, borderRadius: 16, border: `1px solid ${C.borderLight}`, boxShadow: C.shadow, transition: "all 0.2s", cursor: onClick ? "pointer" : "default", ...sx }}
+    onMouseEnter={e => { if (hover && onClick) { e.currentTarget.style.boxShadow = C.shadowMd; e.currentTarget.style.transform = "translateY(-1px)"; }}}
+    onMouseLeave={e => { if (hover && onClick) { e.currentTarget.style.boxShadow = C.shadow; e.currentTarget.style.transform = "translateY(0)"; }}}>{children}</div>
 );
-
 const Bar = ({ v, mx, color = C.primary, h = 6 }) => (
   <div style={{ width: "100%", height: h, background: C.bgAlt, borderRadius: h, overflow: "hidden" }}>
-    <div style={{ width: `${Math.min(v / mx * 100, 100)}%`, height: h, borderRadius: h, background: v > mx ? C.danger : color, transition: "width 0.6s ease" }} />
+    <div style={{ width: `${Math.min(v / mx * 100, 100)}%`, height: h, borderRadius: h, background: v > mx ? C.danger : color, transition: "width 0.6s" }} />
   </div>
 );
-
 const Av = ({ name, color, size = 32 }) => (
   <div style={{ width: size, height: size, borderRadius: "50%", background: color, display: "flex", alignItems: "center", justifyContent: "center", fontSize: size * 0.4, fontWeight: 700, color: "#fff", flexShrink: 0 }}>{name[0]}</div>
 );
-
 const Img = ({ src, alt, style: sx }) => {
   const [e, setE] = useState(false);
   if (e) return <div style={{ ...sx, background: `linear-gradient(135deg, ${C.primaryLight}, ${C.blueLight})`, display: "flex", alignItems: "center", justifyContent: "center", color: C.textDim }}>🗺️</div>;
-  return <img src={src} alt={alt} style={{ objectFit: "cover", display: "block", ...sx }} onError={() => setE(true)} />;
+  return <img src={src} alt={alt || ""} style={{ objectFit: "cover", display: "block", ...sx }} onError={() => setE(true)} />;
 };
 
-// ─── Map ───
-const TripMap = ({ day }) => {
-  const pts = [
-    { x: 50, y: 35, l: "Old Town", d: 1 }, { x: 40, y: 25, l: "Cismigiu", d: 1 }, { x: 55, y: 20, l: "Ateneum", d: 1 },
-    { x: 30, y: 80, l: "Sinaia", d: 2 }, { x: 15, y: 60, l: "Bran", d: 2 }, { x: 20, y: 45, l: "Brasov", d: 2 },
-    { x: 45, y: 50, l: "Parliament", d: 3 }, { x: 60, y: 55, l: "Bragadiru", d: 3 }, { x: 80, y: 15, l: "Airport", d: 3 },
-  ];
-  const dc = ["", C.blue, C.coral, C.sage];
-  const f = day ? pts.filter(p => p.d === day) : pts;
+// ── Sliding Photo Carousel ──
+const PhotoSlider = ({ dest }) => {
+  const photos = DEST_PHOTOS[dest] || [];
+  const [idx, setIdx] = useState(0);
+  useEffect(() => { if (photos.length < 2) return; const t = setInterval(() => setIdx(p => (p + 1) % photos.length), 3500); return () => clearInterval(t); }, [photos.length]);
+  if (!photos.length) return <div style={{ height: 150, background: `linear-gradient(135deg, ${C.primaryLight}, ${C.blueLight})`, borderRadius: "0 0 16px 16px" }} />;
   return (
-    <div style={{ position: "relative", width: "100%", height: 200, background: `linear-gradient(135deg, ${C.blueLight}, ${C.bgAlt}, ${C.sageLight})`, borderRadius: 16, overflow: "hidden" }}>
-      <svg width="100%" height="100%" style={{ position: "absolute" }}>
-        <defs><pattern id="g" width="30" height="30" patternUnits="userSpaceOnUse"><path d="M 30 0 L 0 0 0 30" fill="none" stroke={C.border} strokeWidth="0.5" opacity="0.4" /></pattern></defs>
-        <rect width="100%" height="100%" fill="url(#g)" />
-        {f.length > 1 && f.map((p, i) => i > 0 && <line key={i} x1={`${f[i-1].x}%`} y1={`${f[i-1].y}%`} x2={`${p.x}%`} y2={`${p.y}%`} stroke={dc[p.d]} strokeWidth="2" strokeDasharray="6 4" opacity="0.5" />)}
-      </svg>
-      {f.map((p, i) => (
-        <div key={i} style={{ position: "absolute", left: `${p.x}%`, top: `${p.y}%`, transform: "translate(-50%,-50%)", display: "flex", flexDirection: "column", alignItems: "center", gap: 2, animation: `fadeUp 0.4s ease ${i * 0.05}s both` }}>
-          <div style={{ width: 22, height: 22, borderRadius: "50%", background: dc[p.d], display: "flex", alignItems: "center", justifyContent: "center", fontSize: 10, fontWeight: 700, color: "#fff", boxShadow: `0 2px 6px ${dc[p.d]}55`, border: "2px solid #fff" }}>{p.d}</div>
-          <span style={{ fontSize: 9, fontWeight: 600, color: C.text, background: "rgba(255,255,255,0.85)", padding: "1px 5px", borderRadius: 4, whiteSpace: "nowrap" }}>{p.l}</span>
+    <div style={{ position: "relative", height: 150, overflow: "hidden", borderRadius: "0 0 16px 16px" }}>
+      {photos.map((p, i) => <img key={i} src={p} alt="" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", transition: "opacity 1s ease", opacity: i === idx ? 1 : 0 }} />)}
+      <div style={{ position: "absolute", inset: 0, background: "linear-gradient(0deg, rgba(44,24,16,0.5) 0%, transparent 50%)" }} />
+      <div style={{ position: "absolute", bottom: 8, left: 0, right: 0, display: "flex", justifyContent: "center", gap: 5 }}>
+        {photos.map((_, i) => <div key={i} style={{ width: i === idx ? 16 : 6, height: 6, borderRadius: 3, background: i === idx ? "#fff" : "rgba(255,255,255,0.5)", transition: "all 0.3s" }} />)}
+      </div>
+    </div>
+  );
+};
+
+// ── Modal ──
+const Modal = ({ open, onClose, title, children, wide }) => {
+  if (!open) return null;
+  return (
+    <div style={{ position: "fixed", inset: 0, zIndex: 200, display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }} onClick={onClose}>
+      <div style={{ position: "absolute", inset: 0, background: "rgba(44,24,16,0.4)", backdropFilter: "blur(4px)" }} />
+      <div onClick={e => e.stopPropagation()} style={{ position: "relative", background: C.white, borderRadius: 20, boxShadow: C.shadowMd, width: "100%", maxWidth: wide ? 600 : 480, maxHeight: "85vh", overflow: "auto", animation: "fadeUp 0.25s ease" }}>
+        <div style={{ padding: "16px 20px", borderBottom: `1px solid ${C.borderLight}`, display: "flex", justifyContent: "space-between", alignItems: "center", position: "sticky", top: 0, background: C.white, zIndex: 1, borderRadius: "20px 20px 0 0" }}>
+          <span style={{ fontSize: 16, fontWeight: 700, fontFamily: F }}>{title}</span>
+          <button onClick={onClose} style={{ width: 28, height: 28, borderRadius: 8, background: C.bgAlt, border: "none", cursor: "pointer", fontSize: 14, color: C.textDim }}>✕</button>
         </div>
-      ))}
-    </div>
-  );
-};
-
-// ─── AI Chat ───
-const AI = () => {
-  const [msgs, setMsgs] = useState([{ role: "ai", text: "Hi Bartek! I'm your Ventura AI planner. I see you're heading to Bucharest for 3 days. Want me to optimize your itinerary, suggest hidden gems, or help with bookings?" }]);
-  const [inp, setInp] = useState("");
-  const [typing, setTyping] = useState(false);
-  const ref = useRef(null);
-  const chips = ["Optimize Day 1 route", "Best restaurants Old Town", "March weather tips", "Hidden gems Bucharest"];
-  const send = (t) => {
-    const v = t || inp; if (!v.trim()) return;
-    setMsgs(p => [...p, { role: "user", text: v }]); setInp(""); setTyping(true);
-    setTimeout(() => {
-      setTyping(false);
-      const R = {
-        "Optimize Day 1 route": "Your Day 1 route is already efficient along Calea Victoriei. One tweak: swap CEC (17:30) with Carturesti (18:00) — the bookstore closes at 21:00 but CEC exterior photographs best in golden hour ~18:15. Saves ~10min backtracking.\n\nApply this change?",
-        "Best restaurants Old Town": "Top picks near your route:\n\n1. Lacrimi si Sfinti — Modern Romanian, 4.6 (on Day 3!)\n2. Caru' cu Bere — Historic beer hall, 4.4 (Day 1)\n3. Energiea — Veggie-friendly, 4.5\n4. Artist Restaurant — Fine dining, 4.7, reserve ahead\n\nShall I book any?",
-        "March weather tips": "March in Bucharest: 4-14C, occasional rain.\n\nLayer up: warm base + fleece + windproof jacket\nScarf & gloves for morning walks\nWaterproof walking shoes (cobblestones!)\nLight rain jacket — 30% rain chance Sunday\n\nAlready added weather items to your packing list!",
-        "Hidden gems Bucharest": "Spots most tourists miss:\n\nPasajul Macca-Vilacrosse — Yellow glass passage, amazing light\nStreet Art in Selari — Murals near Stavropoleos\nOrigo Coffee — Best specialty coffee in town\nBotanical Garden — Peaceful escape near Cotroceni\n\nWant me to fit any into free slots?",
-      };
-      setMsgs(p => [...p, { role: "ai", text: R[v] || "I can optimize routes, find restaurants, adjust timing, or recommend activities. What would you like?" }]);
-    }, 1800);
-  };
-  useEffect(() => { ref.current?.scrollTo(0, ref.current.scrollHeight); }, [msgs, typing]);
-  return (
-    <div style={{ display: "flex", flexDirection: "column", height: 480 }}>
-      <div ref={ref} style={{ flex: 1, overflow: "auto", padding: 16, display: "flex", flexDirection: "column", gap: 10 }}>
-        {msgs.map((m, i) => (
-          <div key={i} style={{ display: "flex", justifyContent: m.role === "user" ? "flex-end" : "flex-start", animation: "fadeUp 0.3s ease" }}>
-            <div style={{ maxWidth: "82%", padding: "10px 14px", borderRadius: 16, background: m.role === "user" ? C.primary : C.white, border: m.role === "ai" ? `1px solid ${C.borderLight}` : "none", boxShadow: m.role === "ai" ? C.shadow : "none", color: m.role === "user" ? "#fff" : C.text, fontSize: 13, lineHeight: 1.6, borderBottomRightRadius: m.role === "user" ? 4 : 16, borderBottomLeftRadius: m.role === "ai" ? 4 : 16, whiteSpace: "pre-line" }}>
-              {m.role === "ai" && <div style={{ fontSize: 10, fontWeight: 700, color: C.primary, marginBottom: 4, letterSpacing: 0.5 }}>VENTURA AI</div>}
-              {m.text}
-            </div>
-          </div>
-        ))}
-        {typing && <div style={{ display: "flex", gap: 5, padding: "12px 16px", background: C.white, borderRadius: 16, width: "fit-content", border: `1px solid ${C.borderLight}` }}>{[0,1,2].map(i => <div key={i} style={{ width: 7, height: 7, borderRadius: "50%", background: C.textDim, animation: `dot 1.2s ease infinite ${i*0.15}s` }} />)}</div>}
-      </div>
-      {msgs.length <= 2 && <div style={{ padding: "0 16px 8px", display: "flex", flexWrap: "wrap", gap: 6 }}>
-        {chips.map((s, i) => <button key={i} onClick={() => send(s)} style={{ padding: "7px 14px", borderRadius: 99, background: C.primaryLight, border: `1px solid ${C.primary}33`, color: C.primary, fontSize: 12, fontWeight: 500, cursor: "pointer", fontFamily: "inherit" }}>{s}</button>)}
-      </div>}
-      <div style={{ padding: "12px 16px", borderTop: `1px solid ${C.borderLight}`, display: "flex", gap: 8 }}>
-        <input value={inp} onChange={e => setInp(e.target.value)} onKeyDown={e => e.key === "Enter" && send()} placeholder="Ask about your trip..."
-          style={{ flex: 1, padding: "10px 14px", borderRadius: 12, border: `1.5px solid ${C.border}`, fontSize: 13, fontFamily: "inherit", outline: "none", background: C.bg, color: C.text }} />
-        <button onClick={() => send()} style={{ padding: "10px 18px", borderRadius: 12, background: C.primary, border: "none", cursor: "pointer", color: "#fff", fontSize: 13, fontWeight: 600, fontFamily: "inherit" }}>Send</button>
+        <div style={{ padding: 20 }}>{children}</div>
       </div>
     </div>
   );
 };
 
-// ═══════════════ MAIN ═══════════════
+// ═══════════════ MAIN APP ═══════════════
 export default function Ventura() {
+  const [loggedIn, setLoggedIn] = useState(false);
+  const [currentUser, setCurrentUser] = useState(null);
   const [scr, setScr] = useState("home");
   const [tab, setTab] = useState("trip");
+  const [activeTrip, setActiveTrip] = useState(null);
+  const [trips, setTrips] = useState(INIT_TRIPS);
+  const [users] = useState(USERS_DB);
+  const [showWizard, setShowWizard] = useState(false);
+  const [showInvite, setShowInvite] = useState(false);
+  const [showProfile, setShowProfile] = useState(false);
+  const [showTravelers, setShowTravelers] = useState(false);
   const [aDay, setADay] = useState(null);
-  const [pack, setPack] = useState(PACKING);
-  const [exps, setExps] = useState(EXPENSES);
-  const [showAdd, setShowAdd] = useState(false);
-  const [nE, setNE] = useState({ name: "", amount: "", cat: "Food", payer: "Bartek" });
-  const [cI, setCI] = useState("");
-  const [cM, setCM] = useState(CHAT);
-  const [eItem, setEItem] = useState(null);
   const [eDays, setEDays] = useState({});
-  const [bSrch, setBSrch] = useState("");
-  const [bgt, setBgt] = useState(INIT_BUDGET);
+  const [eItem, setEItem] = useState(null);
   const [eBgt, setEBgt] = useState(false);
-  const [bIn, setBIn] = useState(String(INIT_BUDGET.total));
-  const [ntd, setNtd] = useState("");
+  const [bIn, setBIn] = useState("");
+  const [journalInput, setJournalInput] = useState("");
+  const [wizStep, setWizStep] = useState(0);
+  const [wizData, setWizData] = useState({ name: "", dest: "", startDate: "", endDate: "", travelers: 2, style: "Cultural" });
+  const [invEmail, setInvEmail] = useState("");
+  const [invRole, setInvRole] = useState("companion");
 
-  const tD = d => setEDays(p => ({ ...p, [d]: !p[d] }));
-  const sB = () => { const v = parseInt(bIn); if (v > 0) setBgt(p => ({ ...p, total: v })); setEBgt(false); };
-  const tP = (c, i) => { setPack(p => { const u = { ...p }; u[c] = [...u[c]]; u[c][i] = { ...u[c][i], packed: !u[c][i].packed }; return u; }); };
+  const trip = activeTrip ? trips.find(t => t.id === activeTrip) : null;
+  const getUser = id => users.find(u => u.id === id) || { name: "?", avatar: "?", color: C.textDim };
+  const userRole = trip ? (trip.travelers.includes(currentUser?.id) ? (currentUser?.role || "user") : trip.observers?.includes(currentUser?.id) ? "observer" : "guest") : "user";
+  const canEdit = ["admin","user","companion"].includes(userRole);
+  const updateTrip = (id, fn) => setTrips(p => p.map(t => t.id === id ? fn(t) : t));
 
-  const pC = Object.values(pack).flat().filter(i => i.packed).length;
-  const tI = Object.values(pack).flat().length;
-  const tS = exps.reduce((s, e) => s + e.amount, 0);
-  const cS = exps.reduce((a, e) => { a[e.cat] = (a[e.cat] || 0) + e.amount; return a; }, {});
-  const bP = exps.filter(e => e.payer === "Bartek").reduce((s, e) => s + e.amount, 0);
-  const aP = exps.filter(e => e.payer === "Anna").reduce((s, e) => s + e.amount, 0);
+  // ── Login ──
+  if (!loggedIn) return (
+    <div style={{ minHeight: "100vh", background: `linear-gradient(135deg, ${C.primaryLight} 0%, ${C.bg} 40%, ${C.blueLight} 100%)`, display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "'Nunito Sans', sans-serif", padding: 20 }}>
+      <style>{`@import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,700;9..144,800&family=Nunito+Sans:opsz,wght@6..12,400;6..12,600;6..12,700&display=swap'); @keyframes fadeUp { from { opacity:0; transform:translateY(20px) } to { opacity:1; transform:translateY(0) } }`}</style>
+      <div style={{ width: "100%", maxWidth: 400, animation: "fadeUp 0.5s ease" }}>
+        <div style={{ textAlign: "center", marginBottom: 32 }}>
+          <div style={{ width: 64, height: 64, borderRadius: 18, background: `linear-gradient(135deg, ${C.primary}, ${C.coral})`, display: "inline-flex", alignItems: "center", justifyContent: "center", fontSize: 32, fontWeight: 800, color: "#fff", fontFamily: F, marginBottom: 12 }}>V</div>
+          <h1 style={{ fontSize: 32, fontWeight: 800, fontFamily: F, color: C.text }}>Ventura</h1>
+          <p style={{ fontSize: 14, color: C.textSec, marginTop: 4 }}>Your intelligent travel companion</p>
+        </div>
+        <Card style={{ padding: 24 }} hover={false}>
+          <div style={{ fontSize: 14, fontWeight: 700, fontFamily: F, marginBottom: 16 }}>Sign in as:</div>
+          {USERS_DB.map(u => (
+            <div key={u.id} onClick={() => { setCurrentUser(u); setLoggedIn(true); }} style={{ padding: "12px 16px", borderRadius: 12, border: `1.5px solid ${C.border}`, marginBottom: 8, display: "flex", alignItems: "center", gap: 12, cursor: "pointer", transition: "all 0.2s" }}
+              onMouseEnter={e => { e.currentTarget.style.borderColor = C.primary; e.currentTarget.style.background = C.primaryLight; }}
+              onMouseLeave={e => { e.currentTarget.style.borderColor = C.border; e.currentTarget.style.background = "transparent"; }}>
+              <Av name={u.name} color={u.color} size={40} />
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: 14, fontWeight: 600 }}>{u.name}</div>
+                <div style={{ fontSize: 12, color: C.textDim }}>{u.email}</div>
+              </div>
+              <span style={{ fontSize: 10, fontWeight: 700, color: ROLES[u.role].color, background: `${ROLES[u.role].color}15`, padding: "3px 10px", borderRadius: 99, textTransform: "uppercase" }}>{ROLES[u.role].label}</span>
+            </div>
+          ))}
+          <p style={{ fontSize: 11, color: C.textDim, textAlign: "center", marginTop: 12 }}>Demo mode — pick any user. Role determines access level.</p>
+        </Card>
+      </div>
+    </div>
+  );
 
-  const addE = () => { if (!nE.name || !nE.amount) return; setExps(p => [...p, { id: p.length+1, name: nE.name, cat: nE.cat, amount: +nE.amount, payer: nE.payer, date: "Mar 9" }]); setNE({ name: "", amount: "", cat: "Food", payer: "Bartek" }); setShowAdd(false); };
-  const sChat = () => { if (!cI.trim()) return; setCM(p => [...p, { from: "Bartek", text: cI, time: "Now", color: C.blue }]); setCI(""); };
+  // ── Tab config ──
+  const getTabs = () => {
+    if (!trip) return [];
+    if (trip.status === "past") return [
+      { id: "memories", l: "Memories", i: "✨" }, { id: "trip", l: "Itinerary", i: "🗺️" },
+      { id: "journal", l: "Journal", i: "📓" }, { id: "budget", l: "Budget", i: "💰" },
+    ];
+    if (trip.status === "planning") return [
+      { id: "plan", l: "Plan", i: "📋" }, { id: "journal", l: "Journal", i: "📓" },
+      { id: "budget", l: "Budget", i: "💰" }, { id: "booking", l: "Book", i: "🔖" },
+    ];
+    return [
+      { id: "trip", l: "Trip", i: "🗺️" }, { id: "ai", l: "AI", i: "✨" },
+      { id: "packing", l: "Pack", i: "🎒" }, { id: "budget", l: "Budget", i: "💰" },
+      { id: "journal", l: "Journal", i: "📓" }, { id: "booking", l: "Book", i: "🔖" },
+    ];
+  };
 
-  const tabs = [
-    { id: "trip", l: "Trip", i: "🗺️" }, { id: "ai", l: "AI Planner", i: "✨" },
-    { id: "packing", l: "Packing", i: "🎒" }, { id: "budget", l: "Budget", i: "💰" },
-    { id: "chat", l: "Group", i: "💬" }, { id: "booking", l: "Book", i: "🔖" },
-  ];
-
-  const F = "'Fraunces', serif";
+  const createTrip = () => {
+    const id = "trip_" + Date.now();
+    const newT = {
+      id, name: wizData.name || `${wizData.dest} Trip`, dest: wizData.dest,
+      dates: `${wizData.startDate} – ${wizData.endDate}`, travelers: [currentUser.id], observers: [],
+      days: 0, status: "planning", heroImg: "", budget: { total: 0 }, completeness: 5,
+      journal: [], memories: null, dayData: [], expenses: [], packing: {}, deals: [],
+      planningTips: [
+        { icon: "🏨", title: "Book accommodation", desc: `Find a place to stay in ${wizData.dest}.`, done: false, priority: "high" },
+        { icon: "✈️", title: "Book flights", desc: `Search flights to ${wizData.dest}.`, done: false, priority: "high" },
+        { icon: "🗺️", title: "Plan daily itinerary", desc: `${wizData.travelers} people, ${wizData.style} style.`, done: false, priority: "medium" },
+        { icon: "🎒", title: "Create packing list", desc: "Check weather and pack accordingly.", done: false, priority: "low" },
+      ],
+    };
+    setTrips(p => [newT, ...p]);
+    setShowWizard(false); setWizStep(0); setWizData({ name: "", dest: "", startDate: "", endDate: "", travelers: 2, style: "Cultural" });
+    setActiveTrip(id); setScr("trip"); setTab("plan");
+  };
 
   return (
     <div style={{ minHeight: "100vh", background: C.bg, fontFamily: "'Nunito Sans', 'Helvetica Neue', sans-serif", color: C.text }}>
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700;9..144,800&family=Nunito+Sans:opsz,wght@6..12,300;6..12,400;6..12,500;6..12,600;6..12,700&display=swap');
-        * { box-sizing: border-box; margin: 0; padding: 0; }
-        ::-webkit-scrollbar { width: 5px; } ::-webkit-scrollbar-thumb { background: ${C.border}; border-radius: 5px; }
-        @keyframes fadeUp { from { opacity:0; transform:translateY(12px); } to { opacity:1; transform:translateY(0); } }
-        @keyframes dot { 0%,100% { opacity:.25; transform:scale(.8); } 50% { opacity:1; transform:scale(1.1); } }
-        input:focus, select:focus { outline:none; border-color:${C.primary} !important; }
-        select { appearance:none; background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24'%3E%3Cpath fill='%236B5B4F' d='M7 10l5 5 5-5z'/%3E%3C/svg%3E"); background-repeat:no-repeat; background-position:right 10px center; padding-right:28px !important; }
+        * { box-sizing:border-box; margin:0; padding:0; }
+        ::-webkit-scrollbar { width:5px; } ::-webkit-scrollbar-thumb { background:${C.border}; border-radius:5px; }
+        @keyframes fadeUp { from{opacity:0;transform:translateY(12px)} to{opacity:1;transform:translateY(0)} }
+        input:focus,select:focus,textarea:focus { outline:none; border-color:${C.primary} !important; }
       `}</style>
 
       {/* HEADER */}
       <header style={{ padding: "12px 20px", display: "flex", alignItems: "center", justifyContent: "space-between", borderBottom: `1px solid ${C.borderLight}`, background: "rgba(254,251,246,0.92)", backdropFilter: "blur(12px)", position: "sticky", top: 0, zIndex: 100 }}>
-        <div onClick={() => setScr("home")} style={{ display: "flex", alignItems: "center", gap: 10, cursor: "pointer" }}>
+        <div onClick={() => { setScr("home"); setActiveTrip(null); }} style={{ display: "flex", alignItems: "center", gap: 10, cursor: "pointer" }}>
           <div style={{ width: 32, height: 32, borderRadius: 10, background: `linear-gradient(135deg, ${C.primary}, ${C.coral})`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16, fontWeight: 800, color: "#fff", fontFamily: F }}>V</div>
-          <span style={{ fontSize: 18, fontWeight: 700, fontFamily: F, color: C.text }}>Ventura</span>
+          <span style={{ fontSize: 18, fontWeight: 700, fontFamily: F }}>Ventura</span>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          {scr === "trip" && <button onClick={() => setScr("home")} style={{ padding: "6px 14px", borderRadius: 99, background: C.bgAlt, border: `1px solid ${C.border}`, fontSize: 12, fontWeight: 500, cursor: "pointer", fontFamily: "inherit", color: C.textSec }}>← Trips</button>}
-          <Av name="Bartek" color={C.blue} size={28} />
+          {scr === "trip" && <button onClick={() => { setScr("home"); setActiveTrip(null); }} style={{ padding: "6px 14px", borderRadius: 99, background: C.bgAlt, border: `1px solid ${C.border}`, fontSize: 12, fontWeight: 500, cursor: "pointer", fontFamily: "inherit", color: C.textSec }}>← Trips</button>}
+          {scr === "trip" && trip && <button onClick={() => setShowTravelers(true)} style={{ padding: "6px 10px", borderRadius: 99, background: C.bgAlt, border: `1px solid ${C.border}`, fontSize: 11, cursor: "pointer", fontFamily: "inherit", color: C.textSec }}>👥 {trip.travelers.length + (trip.observers?.length || 0)}</button>}
+          <div onClick={() => setShowProfile(true)} style={{ cursor: "pointer" }}><Av name={currentUser.name} color={currentUser.color} size={28} /></div>
         </div>
       </header>
 
-      {/* ═══ HOME ═══ */}
+      {/* ═══ HOME SCREEN ═══ */}
       {scr === "home" && (
         <div style={{ animation: "fadeUp 0.3s ease" }}>
           <div style={{ padding: "28px 20px 20px", background: `linear-gradient(180deg, ${C.primaryLight} 0%, ${C.bg} 100%)` }}>
             <div style={{ fontSize: 11, fontWeight: 600, color: C.primary, textTransform: "uppercase", letterSpacing: 1.5, marginBottom: 4 }}>Welcome back</div>
-            <h1 style={{ fontSize: 26, fontWeight: 800, fontFamily: F, marginBottom: 4 }}>Where to next, Bartek?</h1>
-            <p style={{ fontSize: 14, color: C.textSec }}>{ALL_TRIPS.filter(t => t.status !== "past").length} upcoming trips</p>
+            <h1 style={{ fontSize: 26, fontWeight: 800, fontFamily: F, marginBottom: 4 }}>Where to next, {currentUser.name}?</h1>
+            <p style={{ fontSize: 14, color: C.textSec }}>{trips.filter(t => t.status !== "past").length} active trips</p>
           </div>
           <div style={{ padding: "0 20px 16px" }}>
-            <Card style={{ padding: 16, display: "flex", gap: 10, alignItems: "center" }} hover={false}>
-              <input value={ntd} onChange={e => setNtd(e.target.value)} placeholder="Where do you want to go? e.g. Barcelona, Kyoto..."
-                style={{ flex: 1, padding: "12px 16px", borderRadius: 12, border: `1.5px solid ${C.border}`, fontSize: 14, fontFamily: "inherit", background: C.bg, color: C.text }} />
-              <button style={{ padding: "12px 20px", borderRadius: 12, background: C.primary, border: "none", color: "#fff", fontWeight: 700, cursor: "pointer", fontFamily: "inherit", fontSize: 14, whiteSpace: "nowrap" }}>+ New Trip</button>
-            </Card>
+            <button onClick={() => setShowWizard(true)} style={{ width: "100%", padding: "16px 20px", borderRadius: 16, background: `linear-gradient(135deg, ${C.primary}, ${C.coral})`, border: "none", color: "#fff", fontSize: 15, fontWeight: 700, cursor: "pointer", fontFamily: F, boxShadow: C.shadowMd, display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
+              <span style={{ fontSize: 20 }}>+</span> Create New Trip
+            </button>
           </div>
           <div style={{ padding: "0 20px 40px" }}>
             <div style={{ fontSize: 12, fontWeight: 700, color: C.textDim, marginBottom: 10, textTransform: "uppercase", letterSpacing: 1 }}>Your Trips</div>
-            {ALL_TRIPS.map(tr => (
-              <Card key={tr.id} onClick={tr.id === "bucharest" ? () => setScr("trip") : undefined} style={{ marginBottom: 14, overflow: "hidden", opacity: tr.id === "bucharest" ? 1 : 0.75 }}>
-                <div style={{ position: "relative", height: 150, overflow: "hidden" }}>
-                  <Img src={tr.img} alt={tr.name} style={{ width: "100%", height: "100%" }} />
-                  <div style={{ position: "absolute", inset: 0, background: "linear-gradient(0deg, rgba(44,24,16,0.6) 0%, transparent 55%)" }} />
-                  <div style={{ position: "absolute", top: 10, right: 10 }}>
-                    <span style={{ padding: "4px 10px", borderRadius: 99, fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.5, background: tr.status === "upcoming" ? C.sage : tr.status === "planning" ? C.blue : C.textDim, color: "#fff" }}>{tr.status}</span>
+            {trips.map(tr => (
+              <Card key={tr.id} onClick={() => { setActiveTrip(tr.id); setScr("trip"); setTab(tr.status === "past" ? "memories" : tr.status === "planning" ? "plan" : "trip"); }} style={{ marginBottom: 16, overflow: "hidden" }}>
+                <PhotoSlider dest={tr.dest} />
+                <div style={{ padding: "12px 16px" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 6 }}>
+                    <div>
+                      <div style={{ fontSize: 17, fontWeight: 800, fontFamily: F }}>{tr.name}</div>
+                      <div style={{ fontSize: 12, color: C.textSec, marginTop: 2 }}>📍 {tr.dest} · 📅 {tr.dates}</div>
+                    </div>
+                    <span style={{ padding: "4px 10px", borderRadius: 99, fontSize: 10, fontWeight: 700, textTransform: "uppercase", background: tr.status === "upcoming" ? C.sage : tr.status === "planning" ? C.blue : C.textDim, color: "#fff" }}>{tr.status}</span>
                   </div>
-                  <div style={{ position: "absolute", bottom: 12, left: 16 }}>
-                    <div style={{ fontSize: 20, fontWeight: 800, fontFamily: F, color: "#fff", textShadow: "0 1px 4px rgba(0,0,0,0.4)" }}>{tr.name}</div>
-                    <div style={{ fontSize: 12, color: "rgba(255,255,255,0.85)", marginTop: 2 }}>📍 {tr.dest}</div>
+                  {tr.status !== "past" && tr.completeness != null && (
+                    <div style={{ marginTop: 6 }}>
+                      <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, color: C.textDim, marginBottom: 3 }}><span>Trip readiness</span><span>{tr.completeness}%</span></div>
+                      <Bar v={tr.completeness} mx={100} color={tr.completeness > 75 ? C.sage : tr.completeness > 40 ? C.gold : C.coral} h={4} />
+                    </div>
+                  )}
+                  <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 8 }}>
+                    <div style={{ display: "flex" }}>
+                      {tr.travelers.map((uid, i) => { const u = getUser(uid); return <div key={uid} style={{ width: 24, height: 24, borderRadius: "50%", background: u.color, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 10, fontWeight: 700, color: "#fff", marginLeft: i > 0 ? -6 : 0, border: "2px solid #fff", position: "relative", zIndex: tr.travelers.length - i }}>{u.name[0]}</div>; })}
+                    </div>
+                    <span style={{ fontSize: 11, color: C.textDim }}>{tr.travelers.length} travelers{tr.observers?.length > 0 ? ` · ${tr.observers.length} observers` : ""}</span>
                   </div>
-                </div>
-                <div style={{ padding: "10px 16px", display: "flex", justifyContent: "space-between", fontSize: 12, color: C.textSec }}>
-                  <span>📅 {tr.dates}</span><span>👥 {tr.travelers} · {tr.days} days</span>
                 </div>
               </Card>
             ))}
-            <div style={{ fontSize: 12, fontWeight: 700, color: C.textDim, margin: "24px 0 10px", textTransform: "uppercase", letterSpacing: 1 }}>Inspiration</div>
+            <div style={{ fontSize: 12, fontWeight: 700, color: C.textDim, margin: "24px 0 10px", textTransform: "uppercase", letterSpacing: 1 }}>Get Inspired</div>
             <div style={{ display: "flex", gap: 10, overflowX: "auto", paddingBottom: 8 }}>
               {INSPIRATION.map(d => (
-                <div key={d.name} style={{ flex: "0 0 120px", borderRadius: 14, overflow: "hidden", position: "relative", height: 160, cursor: "pointer", boxShadow: C.shadow }}>
+                <div key={d.name} onClick={() => { setWizData(p => ({ ...p, dest: d.name })); setShowWizard(true); }} style={{ flex: "0 0 110px", borderRadius: 14, overflow: "hidden", position: "relative", height: 150, cursor: "pointer", boxShadow: C.shadow }}>
                   <Img src={d.img} alt={d.name} style={{ width: "100%", height: "100%" }} />
                   <div style={{ position: "absolute", inset: 0, background: "linear-gradient(0deg, rgba(44,24,16,0.55) 0%, transparent 50%)" }} />
-                  <div style={{ position: "absolute", bottom: 10, left: 12 }}><div style={{ fontSize: 14, fontWeight: 700, color: "#fff", fontFamily: F, textShadow: "0 1px 3px rgba(0,0,0,0.4)" }}>{d.name}</div></div>
+                  <div style={{ position: "absolute", bottom: 10, left: 10, fontSize: 14, fontWeight: 700, color: "#fff", fontFamily: F, textShadow: "0 1px 3px rgba(0,0,0,0.4)" }}>{d.name}</div>
                 </div>
               ))}
             </div>
@@ -427,340 +419,433 @@ export default function Ventura() {
         </div>
       )}
 
-      {/* ═══ TRIP ═══ */}
-      {scr === "trip" && (
+      {/* ═══ TRIP SCREEN ═══ */}
+      {scr === "trip" && trip && (
         <div style={{ animation: "fadeUp 0.3s ease" }}>
           {/* Hero */}
-          <div style={{ position: "relative", height: 160, overflow: "hidden" }}>
-            <Img src={TRIP.heroImg} alt={TRIP.name} style={{ width: "100%", height: "100%" }} />
-            <div style={{ position: "absolute", inset: 0, background: "linear-gradient(0deg, rgba(44,24,16,0.65) 0%, rgba(44,24,16,0.15) 60%, transparent)" }} />
-            <div style={{ position: "absolute", bottom: 14, left: 20, right: 20 }}>
-              <div style={{ fontSize: 11, fontWeight: 600, color: "rgba(255,255,255,0.7)", textTransform: "uppercase", letterSpacing: 1.5, marginBottom: 2 }}>Upcoming Trip</div>
-              <h1 style={{ fontSize: 24, fontWeight: 800, fontFamily: F, color: "#fff", textShadow: "0 1px 4px rgba(0,0,0,0.3)", marginBottom: 4 }}>{TRIP.name}</h1>
-              <div style={{ display: "flex", gap: 14, fontSize: 12, color: "rgba(255,255,255,0.85)" }}>
-                <span>📍 {TRIP.dest}</span><span>📅 {TRIP.dates}</span><span>👥 {TRIP.travelers.length}</span>
+          <div style={{ position: "relative", height: 140, overflow: "hidden" }}>
+            {trip.heroImg ? <Img src={trip.heroImg} alt={trip.name} style={{ width: "100%", height: "100%" }} /> : <div style={{ width: "100%", height: "100%", background: `linear-gradient(135deg, ${C.primaryLight}, ${C.blueLight})` }} />}
+            <div style={{ position: "absolute", inset: 0, background: "linear-gradient(0deg, rgba(44,24,16,0.65) 0%, transparent 100%)" }} />
+            <div style={{ position: "absolute", bottom: 12, left: 20, right: 20 }}>
+              <h1 style={{ fontSize: 22, fontWeight: 800, fontFamily: F, color: "#fff", textShadow: "0 1px 3px rgba(0,0,0,0.3)" }}>{trip.name}</h1>
+              <div style={{ display: "flex", gap: 12, fontSize: 12, color: "rgba(255,255,255,0.85)", marginTop: 2, flexWrap: "wrap" }}>
+                <span>📍 {trip.dest}</span><span>📅 {trip.dates}</span>
               </div>
             </div>
-            <div style={{ position: "absolute", top: 12, right: 16, background: "rgba(255,255,255,0.92)", borderRadius: 10, padding: "6px 12px", display: "flex", alignItems: "center", gap: 6, backdropFilter: "blur(8px)" }}>
-              <span style={{ fontSize: 18, fontWeight: 800, fontFamily: F, color: C.primary }}>15</span>
-              <span style={{ fontSize: 10, color: C.textDim }}>days</span>
-            </div>
+            {canEdit && <button onClick={() => setShowInvite(true)} style={{ position: "absolute", top: 10, right: 14, background: "rgba(255,255,255,0.9)", border: "none", padding: "6px 12px", borderRadius: 8, fontSize: 11, fontWeight: 600, cursor: "pointer", color: C.primary, fontFamily: "inherit" }}>+ Invite</button>}
           </div>
 
           {/* Tabs */}
-          <div style={{ padding: "0 20px", display: "flex", gap: 2, overflowX: "auto", borderBottom: `1px solid ${C.borderLight}` }}>
-            {tabs.map(t => (
-              <button key={t.id} onClick={() => setTab(t.id)} style={{ padding: "10px 12px", fontSize: 13, fontWeight: tab === t.id ? 600 : 400, color: tab === t.id ? C.primary : C.textDim, background: "transparent", border: "none", borderBottom: tab === t.id ? `2.5px solid ${C.primary}` : "2.5px solid transparent", cursor: "pointer", fontFamily: "inherit", whiteSpace: "nowrap", transition: "all 0.2s", display: "flex", alignItems: "center", gap: 4 }}>
-                <span style={{ fontSize: 14 }}>{t.i}</span> {t.l}
+          <div style={{ padding: "0 16px", display: "flex", gap: 2, overflowX: "auto", borderBottom: `1px solid ${C.borderLight}` }}>
+            {getTabs().map(t => (
+              <button key={t.id} onClick={() => setTab(t.id)} style={{ padding: "10px 12px", fontSize: 12, fontWeight: tab === t.id ? 600 : 400, color: tab === t.id ? C.primary : C.textDim, background: "transparent", border: "none", borderBottom: tab === t.id ? `2.5px solid ${C.primary}` : "2.5px solid transparent", cursor: "pointer", fontFamily: "inherit", whiteSpace: "nowrap", display: "flex", alignItems: "center", gap: 4 }}>
+                <span style={{ fontSize: 13 }}>{t.i}</span> {t.l}
               </button>
             ))}
           </div>
 
           <div style={{ padding: "16px 20px 100px", maxWidth: 720, margin: "0 auto" }}>
 
-            {/* TRIP TAB */}
-            {tab === "trip" && <div>
-              <TripMap day={aDay} />
-              <div style={{ display: "flex", gap: 6, margin: "14px 0", overflowX: "auto", paddingBottom: 4 }}>
-                <Pill active={!aDay} onClick={() => setADay(null)} color={C.text}>All Days</Pill>
-                {TRIP.days.map(d => <Pill key={d.day} active={aDay === d.day} onClick={() => { setADay(aDay === d.day ? null : d.day); setEDays(p => ({ ...p, [d.day]: true })); }} color={[C.blue, C.coral, C.sage][d.day-1]}>Day {d.day}: {d.title}</Pill>)}
+            {/* ══ MEMORIES ══ */}
+            {tab === "memories" && trip.memories && (
+              <div style={{ animation: "fadeUp 0.3s" }}>
+                <Card style={{ padding: 24, marginBottom: 16, background: `linear-gradient(135deg, ${C.goldLight}, ${C.white})`, textAlign: "center" }} hover={false}>
+                  <div style={{ fontSize: 36, marginBottom: 8 }}>🎉</div>
+                  <div style={{ fontSize: 20, fontWeight: 800, fontFamily: F }}>Trip Complete!</div>
+                  <div style={{ fontSize: 14, color: C.textSec }}>{trip.name} · {trip.dates}</div>
+                  <div style={{ display: "flex", justifyContent: "center", gap: 20, marginTop: 16, flexWrap: "wrap" }}>
+                    {Object.entries(trip.memories.stats).map(([k, v]) => (
+                      <div key={k} style={{ textAlign: "center" }}>
+                        <div style={{ fontSize: 20, fontWeight: 800, fontFamily: F, color: C.primary }}>{v}</div>
+                        <div style={{ fontSize: 10, color: C.textDim, textTransform: "capitalize" }}>{k.replace(/([A-Z])/g, ' $1')}</div>
+                      </div>
+                    ))}
+                  </div>
+                </Card>
+                <div style={{ fontSize: 14, fontWeight: 700, fontFamily: F, marginBottom: 10 }}>Trip Highlights</div>
+                {trip.memories.highlights.map((h, i) => (
+                  <Card key={i} style={{ padding: 14, marginBottom: 8, display: "flex", alignItems: "center", gap: 12 }} hover={false}>
+                    <span style={{ fontSize: 24 }}>{h.icon}</span>
+                    <div><div style={{ fontSize: 11, color: C.textDim, fontWeight: 600 }}>{h.title}</div><div style={{ fontSize: 13, fontWeight: 600 }}>{h.value}</div></div>
+                  </Card>
+                ))}
+                <Card style={{ padding: 16, marginTop: 12, background: trip.memories.budgetSummary.underBudget ? C.sageLight : C.coralLight }} hover={false}>
+                  <div style={{ fontSize: 13, fontWeight: 700, fontFamily: F, marginBottom: 8 }}>Budget Summary</div>
+                  <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13 }}>
+                    <span>Planned: {fmt(trip.memories.budgetSummary.planned)} RON</span>
+                    <span style={{ fontWeight: 700, color: trip.memories.budgetSummary.underBudget ? C.sage : C.danger }}>
+                      Actual: {fmt(trip.memories.budgetSummary.actual)} RON
+                    </span>
+                  </div>
+                </Card>
+                <div style={{ fontSize: 14, fontWeight: 700, fontFamily: F, margin: "18px 0 10px" }}>Top Moments</div>
+                <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                  {trip.memories.topMoments.map((m, i) => <span key={i} style={{ padding: "8px 14px", borderRadius: 99, background: C.bgAlt, border: `1px solid ${C.border}`, fontSize: 12, fontWeight: 500 }}>💛 {m}</span>)}
+                </div>
               </div>
-              {TRIP.days.filter(d => !aDay || d.day === aDay).map(day => {
-                const open = !!eDays[day.day]; const dc = day.items.reduce((s, it) => s + it.cost, 0);
+            )}
+            {tab === "memories" && !trip.memories && (
+              <Card style={{ padding: 32, textAlign: "center" }} hover={false}><div style={{ fontSize: 40, marginBottom: 12 }}>📸</div><div style={{ fontSize: 16, fontWeight: 700, fontFamily: F }}>Memories coming soon</div><p style={{ fontSize: 13, color: C.textSec, marginTop: 6 }}>Trip summary appears after the trip.</p></Card>
+            )}
+
+            {/* ══ PLANNING ══ */}
+            {tab === "plan" && trip.planningTips && (
+              <div style={{ animation: "fadeUp 0.3s" }}>
+                <Card style={{ padding: 20, marginBottom: 14, background: `linear-gradient(135deg, ${C.blueLight}, ${C.white})` }} hover={false}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+                    <div><div style={{ fontSize: 16, fontWeight: 800, fontFamily: F }}>Trip Readiness</div><div style={{ fontSize: 12, color: C.textSec }}>{trip.planningTips.filter(t => t.done).length}/{trip.planningTips.length} done</div></div>
+                    <div style={{ fontSize: 28, fontWeight: 800, fontFamily: F, color: C.blue }}>{trip.completeness}%</div>
+                  </div>
+                  <Bar v={trip.completeness} mx={100} color={C.blue} h={8} />
+                </Card>
+                <div style={{ fontSize: 12, fontWeight: 700, color: C.textDim, marginBottom: 8, textTransform: "uppercase", letterSpacing: 1 }}>What to do next</div>
+                {trip.planningTips.map((tip, i) => (
+                  <Card key={i} style={{ padding: 14, marginBottom: 8, opacity: tip.done ? 0.5 : 1 }} hover={false}
+                    onClick={canEdit ? () => updateTrip(trip.id, t => {
+                      const tips = t.planningTips.map((tp, j) => j === i ? { ...tp, done: !tp.done } : tp);
+                      return { ...t, planningTips: tips, completeness: Math.min(100, Math.round(tips.filter(x => x.done).length / tips.length * 100)) };
+                    }) : undefined}>
+                    <div style={{ display: "flex", alignItems: "flex-start", gap: 12 }}>
+                      <div style={{ width: 22, height: 22, borderRadius: 6, border: tip.done ? "none" : `2px solid ${tip.priority === "high" ? C.danger : tip.priority === "medium" ? C.gold : C.border}`, background: tip.done ? C.sage : "transparent", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, marginTop: 2, cursor: canEdit ? "pointer" : "default" }}>
+                        {tip.done && <span style={{ color: "#fff", fontSize: 12, fontWeight: 700 }}>✓</span>}
+                      </div>
+                      <div style={{ flex: 1 }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 2 }}>
+                          <span>{tip.icon}</span><span style={{ fontSize: 13, fontWeight: 600, textDecoration: tip.done ? "line-through" : "none" }}>{tip.title}</span>
+                          {tip.priority === "high" && !tip.done && <span style={{ fontSize: 9, background: C.danger, color: "#fff", padding: "2px 6px", borderRadius: 99, fontWeight: 700 }}>HIGH</span>}
+                        </div>
+                        <div style={{ fontSize: 12, color: C.textSec }}>{tip.desc}</div>
+                      </div>
+                    </div>
+                  </Card>
+                ))}
+                <Card style={{ padding: 16, marginTop: 12, background: C.primaryLight, border: `1px solid ${C.primary}22` }} hover={false}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}><span style={{ fontSize: 16 }}>✨</span><span style={{ fontSize: 13, fontWeight: 700, color: C.primary }}>AI Tip</span></div>
+                  <p style={{ fontSize: 12, color: C.textSec, lineHeight: 1.5 }}>Book accommodation first — prices in {trip.dest} tend to rise 3-4 weeks before travel. Want me to search for options?</p>
+                </Card>
+              </div>
+            )}
+
+            {/* ══ ITINERARY ══ */}
+            {tab === "trip" && trip.dayData?.length > 0 && <div>
+              <div style={{ display: "flex", gap: 6, margin: "0 0 14px", overflowX: "auto", paddingBottom: 4 }}>
+                <Pill active={!aDay} onClick={() => setADay(null)} color={C.text}>All</Pill>
+                {trip.dayData.map(d => <Pill key={d.day} active={aDay === d.day} onClick={() => { setADay(aDay === d.day ? null : d.day); setEDays(p => ({ ...p, [d.day]: true })); }} color={[C.blue, C.coral, C.sage][d.day % 3]}>Day {d.day}</Pill>)}
+              </div>
+              {trip.dayData.filter(d => !aDay || d.day === aDay).map(day => {
+                const open = !!eDays[day.day];
                 return (
                   <Card key={day.day} style={{ marginBottom: 14, overflow: "hidden" }} hover={false}>
-                    <div onClick={() => tD(day.day)} style={{ cursor: "pointer" }}>
-                      <div style={{ position: "relative", height: 60, overflow: "hidden" }}>
+                    <div onClick={() => setEDays(p => ({ ...p, [day.day]: !p[day.day] }))} style={{ cursor: "pointer" }}>
+                      <div style={{ position: "relative", height: 56, overflow: "hidden" }}>
                         <Img src={day.img} alt={day.title} style={{ width: "100%", height: "100%" }} />
-                        <div style={{ position: "absolute", inset: 0, background: `linear-gradient(90deg, ${[C.blue, C.coral, C.sage][day.day-1]}CC, ${[C.blue, C.coral, C.sage][day.day-1]}44)` }} />
-                        <div style={{ position: "absolute", inset: 0, padding: "0 16px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                            <div style={{ width: 30, height: 30, borderRadius: 8, background: "rgba(255,255,255,0.25)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 700, color: "#fff", border: "1.5px solid rgba(255,255,255,0.4)" }}>D{day.day}</div>
-                            <div>
-                              <div style={{ fontSize: 14, fontWeight: 700, fontFamily: F, color: "#fff", textShadow: "0 1px 2px rgba(0,0,0,0.2)" }}>{day.title}</div>
-                              <div style={{ fontSize: 11, color: "rgba(255,255,255,0.8)" }}>{day.date} · {day.items.length} stops{dc > 0 ? ` · ~${dc} RON` : ""}</div>
-                            </div>
-                          </div>
-                          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                            <div style={{ background: "rgba(255,255,255,0.9)", padding: "3px 8px", borderRadius: 6, display: "flex", alignItems: "center", gap: 4 }}>
-                              <WI t={day.weather.icon} s={14} />
-                              <span style={{ fontSize: 12, fontWeight: 700, color: C.text }}>{day.weather.hi}/{day.weather.lo}°</span>
-                            </div>
-                            <span style={{ fontSize: 14, color: "#fff", transition: "transform 0.3s", transform: open ? "rotate(180deg)" : "rotate(0)" }}>▾</span>
+                        <div style={{ position: "absolute", inset: 0, background: `linear-gradient(90deg, ${[C.blue, C.coral, C.sage][day.day % 3]}CC, ${[C.blue, C.coral, C.sage][day.day % 3]}44)` }} />
+                        <div style={{ position: "absolute", inset: 0, padding: "0 14px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                          <div style={{ fontSize: 14, fontWeight: 700, fontFamily: F, color: "#fff" }}>Day {day.day}: {day.title}</div>
+                          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                            <div style={{ background: "rgba(255,255,255,0.9)", padding: "2px 8px", borderRadius: 6, display: "flex", alignItems: "center", gap: 3, fontSize: 12 }}><WI t={day.weather.icon} /> <span style={{ fontWeight: 700 }}>{day.weather.hi}/{day.weather.lo}°</span></div>
+                            <span style={{ color: "#fff", transition: "transform 0.3s", transform: open ? "rotate(180deg)" : "rotate(0)" }}>▾</span>
                           </div>
                         </div>
                       </div>
                     </div>
-                    {open && <div style={{ animation: "fadeUp 0.25s ease" }}>
-                      {day.items.map((it, i) => {
-                        const ex = eItem === `${day.day}-${i}`;
-                        return (
-                          <div key={i} onClick={() => setEItem(ex ? null : `${day.day}-${i}`)} style={{ padding: "10px 16px", display: "flex", gap: 12, borderBottom: i < day.items.length-1 ? `1px solid ${C.borderLight}` : "none", cursor: "pointer", transition: "background 0.15s", background: ex ? C.bgAlt : "transparent" }}
-                            onMouseEnter={e => { if (!ex) e.currentTarget.style.background = C.surfaceHover; }} onMouseLeave={e => { if (!ex) e.currentTarget.style.background = "transparent"; }}>
-                            <div style={{ display: "flex", flexDirection: "column", alignItems: "center", minWidth: 44, paddingTop: 2 }}>
-                              <span style={{ fontSize: 11, fontWeight: 600, color: C.textDim }}>{it.time}</span>
-                              {i < day.items.length-1 && <div style={{ width: 1.5, flex: 1, background: C.borderLight, marginTop: 6 }} />}
+                    {open && <div style={{ animation: "fadeUp 0.2s" }}>
+                      {day.items.map((it, i) => (
+                        <div key={i} onClick={() => setEItem(eItem === `${day.day}-${i}` ? null : `${day.day}-${i}`)} style={{ padding: "10px 14px", display: "flex", gap: 10, borderBottom: i < day.items.length - 1 ? `1px solid ${C.borderLight}` : "none", cursor: "pointer", background: eItem === `${day.day}-${i}` ? C.bgAlt : "transparent" }}>
+                          <div style={{ minWidth: 40, fontSize: 11, fontWeight: 600, color: C.textDim, paddingTop: 2 }}>{it.time}</div>
+                          <div style={{ flex: 1 }}>
+                            <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                              <span style={{ fontSize: 13 }}>{tE[it.type]}</span><span style={{ fontSize: 13, fontWeight: 600 }}>{it.name}</span>
+                              {it.rating > 0 && <span style={{ fontSize: 11, color: C.gold }}>★ {it.rating}</span>}
                             </div>
-                            <div style={{ flex: 1, paddingBottom: 4 }}>
-                              <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 2 }}>
-                                <span style={{ fontSize: 15 }}>{tE[it.type]}</span>
-                                <span style={{ fontSize: 13, fontWeight: 600 }}>{it.name}</span>
-                                {it.rating > 0 && <span style={{ fontSize: 11, color: C.gold, fontWeight: 600 }}>★ {it.rating}</span>}
-                              </div>
-                              {ex ? <div style={{ animation: "fadeUp 0.2s ease", marginTop: 4 }}>
-                                <p style={{ fontSize: 12, color: C.textSec, lineHeight: 1.5, marginBottom: 6 }}>{it.desc}</p>
-                                <div style={{ display: "flex", gap: 12, fontSize: 11, color: C.textDim, flexWrap: "wrap" }}>
-                                  <span>⏱ {it.duration}</span>
-                                  {it.cost > 0 && <span>💰 {it.cost} RON (~{fP(it.cost)} PLN)</span>}
-                                  <span style={{ color: tC[it.type], fontWeight: 600, textTransform: "capitalize" }}>{it.type}</span>
-                                </div>
-                              </div> : <div style={{ fontSize: 11, color: C.textDim }}>{it.duration}{it.cost > 0 ? ` · ${it.cost} RON` : ""}</div>}
-                            </div>
+                            {eItem === `${day.day}-${i}` && it.desc && <p style={{ fontSize: 12, color: C.textSec, marginTop: 4, lineHeight: 1.5 }}>{it.desc}</p>}
+                            {eItem !== `${day.day}-${i}` && <div style={{ fontSize: 11, color: C.textDim }}>{it.duration}{it.cost > 0 ? ` · ${it.cost} RON` : ""}</div>}
                           </div>
-                        );
-                      })}
+                        </div>
+                      ))}
                     </div>}
                   </Card>
                 );
               })}
             </div>}
+            {tab === "trip" && (!trip.dayData || !trip.dayData.length) && (
+              <Card style={{ padding: 32, textAlign: "center" }} hover={false}><div style={{ fontSize: 40, marginBottom: 12 }}>🗺️</div><div style={{ fontSize: 16, fontWeight: 700, fontFamily: F }}>No itinerary yet</div><p style={{ fontSize: 13, color: C.textSec, marginTop: 6 }}>Switch to Plan tab to start building.</p></Card>
+            )}
 
-            {/* AI TAB */}
-            {tab === "ai" && <Card style={{ overflow: "hidden" }} hover={false}>
-              <div style={{ padding: "12px 16px", borderBottom: `1px solid ${C.borderLight}`, display: "flex", alignItems: "center", gap: 8, background: `linear-gradient(90deg, ${C.primaryLight}, ${C.white})` }}>
-                <span style={{ fontSize: 18 }}>✨</span>
-                <span style={{ fontSize: 14, fontWeight: 700, fontFamily: F }}>AI Trip Planner</span>
-                <span style={{ fontSize: 10, background: C.primary, color: "#fff", padding: "2px 8px", borderRadius: 99, fontWeight: 600 }}>GPT-4o</span>
-              </div>
-              <AI />
-            </Card>}
-
-            {/* PACKING TAB */}
-            {tab === "packing" && <div>
-              <Card style={{ padding: 14, marginBottom: 14 }} hover={false}>
-                <div style={{ fontSize: 12, fontWeight: 700, color: C.textSec, marginBottom: 10, fontFamily: F }}>7-Day Forecast — Bucharest</div>
-                <div style={{ display: "flex", gap: 8, overflowX: "auto" }}>
-                  {[...TRIP.days.map(d => ({ date: d.date.split(", ")[1], ...d.weather })),
-                    { date: "Mar 10", icon: "rain", hi: 15, lo: 6 }, { date: "Mar 11", icon: "cloud", hi: 12, lo: 5 },
-                    { date: "Mar 12", icon: "sun", hi: 16, lo: 7 }, { date: "Mar 13", icon: "partlysunny", hi: 15, lo: 6 },
-                  ].map((w, i) => (
-                    <div key={i} style={{ flex: "0 0 auto", textAlign: "center", padding: "8px 12px", background: i < 3 ? C.bgAlt : C.white, borderRadius: 12, minWidth: 70, border: i < 3 ? `1.5px solid ${C.border}` : `1px solid ${C.borderLight}` }}>
-                      <div style={{ fontSize: 10, color: C.textDim, fontWeight: 600 }}>{w.date}</div>
-                      <div style={{ margin: "4px 0" }}><WI t={w.icon} s={20} /></div>
-                      <div style={{ fontSize: 14, fontWeight: 700 }}>{w.hi}°</div>
-                      <div style={{ fontSize: 11, color: C.textDim }}>{w.lo}°</div>
-                    </div>
-                  ))}
+            {/* ══ AI ══ */}
+            {tab === "ai" && (
+              <Card style={{ padding: 24, textAlign: "center" }} hover={false}>
+                <div style={{ fontSize: 40, marginBottom: 12 }}>✨</div>
+                <div style={{ fontSize: 16, fontWeight: 700, fontFamily: F }}>AI Trip Planner</div>
+                <p style={{ fontSize: 13, color: C.textSec, marginTop: 8, lineHeight: 1.6 }}>Ask me to optimize routes, find restaurants, suggest hidden gems, or adjust your itinerary for {trip.dest}!</p>
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 6, justifyContent: "center", marginTop: 16 }}>
+                  {["Optimize Day 1", "Best restaurants", "Hidden gems", "Weather tips"].map(s => <span key={s} style={{ padding: "8px 14px", borderRadius: 99, background: C.primaryLight, border: `1px solid ${C.primary}33`, color: C.primary, fontSize: 12, fontWeight: 500, cursor: "pointer" }}>{s}</span>)}
                 </div>
               </Card>
-              <Card style={{ padding: 16, marginBottom: 14 }} hover={false}>
-                <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8 }}>
-                  <span style={{ fontSize: 14, fontWeight: 700, fontFamily: F }}>Packing Progress</span>
-                  <span style={{ fontSize: 14, fontWeight: 700, color: C.sage }}>{pC}/{tI}</span>
-                </div>
-                <Bar v={pC} mx={tI} color={C.sage} h={8} />
-                <div style={{ fontSize: 11, color: C.textDim, marginTop: 6 }}>{tI - pC} remaining · AI added 6 weather items</div>
-              </Card>
-              {Object.entries(pack).map(([cat, items]) => (
-                <Card key={cat} style={{ marginBottom: 10, overflow: "hidden" }} hover={false}>
-                  <div style={{ padding: "10px 16px", borderBottom: `1px solid ${C.borderLight}`, display: "flex", justifyContent: "space-between" }}>
-                    <span style={{ fontSize: 13, fontWeight: 700 }}>{PACK_I[cat]} {cat}</span>
-                    <span style={{ fontSize: 11, color: C.textDim, fontWeight: 600 }}>{items.filter(x=>x.packed).length}/{items.length}</span>
-                  </div>
-                  {items.map((it, i) => (
-                    <div key={i} onClick={() => tP(cat, i)} style={{ padding: "9px 16px", display: "flex", alignItems: "center", gap: 10, borderBottom: i < items.length-1 ? `1px solid ${C.borderLight}` : "none", cursor: "pointer" }}
-                      onMouseEnter={e => e.currentTarget.style.background = C.surfaceHover} onMouseLeave={e => e.currentTarget.style.background = "transparent"}>
-                      <div style={{ width: 20, height: 20, borderRadius: 6, border: it.packed ? "none" : `2px solid ${C.border}`, background: it.packed ? C.sage : "transparent", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                        {it.packed && <span style={{ color: "#fff", fontSize: 12, fontWeight: 700 }}>✓</span>}
+            )}
+
+            {/* ══ PACKING ══ */}
+            {tab === "packing" && (
+              <div>
+                {Object.keys(trip.packing || {}).length === 0 ? (
+                  <Card style={{ padding: 32, textAlign: "center" }} hover={false}><div style={{ fontSize: 40, marginBottom: 12 }}>🎒</div><div style={{ fontSize: 16, fontWeight: 700, fontFamily: F }}>No packing list yet</div><p style={{ fontSize: 13, color: C.textSec, marginTop: 6 }}>AI can generate a weather-appropriate packing list.</p></Card>
+                ) : Object.entries(trip.packing).map(([cat, items]) => (
+                  <Card key={cat} style={{ marginBottom: 10, overflow: "hidden" }} hover={false}>
+                    <div style={{ padding: "10px 16px", borderBottom: `1px solid ${C.borderLight}`, fontSize: 13, fontWeight: 700 }}>{cat}</div>
+                    {items.map((it, i) => (
+                      <div key={i} onClick={canEdit ? () => updateTrip(trip.id, t => ({ ...t, packing: { ...t.packing, [cat]: t.packing[cat].map((x, j) => j === i ? { ...x, packed: !x.packed } : x) } })) : undefined}
+                        style={{ padding: "9px 16px", display: "flex", alignItems: "center", gap: 10, borderBottom: i < items.length - 1 ? `1px solid ${C.borderLight}` : "none", cursor: canEdit ? "pointer" : "default" }}>
+                        <div style={{ width: 18, height: 18, borderRadius: 5, border: it.packed ? "none" : `2px solid ${C.border}`, background: it.packed ? C.sage : "transparent", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                          {it.packed && <span style={{ color: "#fff", fontSize: 11, fontWeight: 700 }}>✓</span>}
+                        </div>
+                        <span style={{ flex: 1, fontSize: 13, textDecoration: it.packed ? "line-through" : "none", color: it.packed ? C.textDim : C.text }}>{it.item}</span>
+                        {it.ai && <span style={{ fontSize: 9, background: C.primaryLight, color: C.primary, padding: "2px 6px", borderRadius: 99, fontWeight: 600 }}>AI</span>}
+                        <span style={{ fontSize: 11, color: C.textDim }}>x{it.qty}</span>
                       </div>
-                      <span style={{ flex: 1, fontSize: 13, color: it.packed ? C.textDim : C.text, textDecoration: it.packed ? "line-through" : "none" }}>{it.item}</span>
-                      {it.ai && <span style={{ fontSize: 9, background: C.primaryLight, color: C.primary, padding: "2px 7px", borderRadius: 99, fontWeight: 600 }}>AI</span>}
-                      <span style={{ fontSize: 11, color: C.textDim }}>x{it.qty}</span>
-                      <span style={{ fontSize: 10, color: C.textDim, minWidth: 36, textAlign: "right" }}>{it.person}</span>
-                    </div>
-                  ))}
-                </Card>
-              ))}
-            </div>}
-
-            {/* BUDGET TAB */}
-            {tab === "budget" && <div>
-              <Card style={{ padding: 20, marginBottom: 14, background: `linear-gradient(135deg, ${C.primaryLight}, ${C.white})` }} hover={false}>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 14 }}>
-                  <div>
-                    <div style={{ fontSize: 11, color: C.textDim, textTransform: "uppercase", letterSpacing: 1, fontWeight: 600 }}>Total Spent</div>
-                    <div style={{ fontSize: 32, fontWeight: 800, fontFamily: F }}>{fmt(tS)} <span style={{ fontSize: 16, fontWeight: 400, color: C.textSec }}>RON</span></div>
-                    <div style={{ fontSize: 12, color: C.textSec }}>≈ {fP(tS)} PLN</div>
-                  </div>
-                  <div style={{ textAlign: "right" }}>
-                    <div style={{ fontSize: 11, color: C.textDim, fontWeight: 600, marginBottom: 2 }}>PLANNED BUDGET</div>
-                    {eBgt ? (
-                      <div style={{ display: "flex", gap: 4, alignItems: "center" }}>
-                        <input value={bIn} onChange={e => setBIn(e.target.value)} autoFocus type="number" onKeyDown={e => e.key === "Enter" && sB()}
-                          style={{ width: 90, padding: "6px 8px", borderRadius: 8, border: `1.5px solid ${C.primary}`, fontSize: 16, fontWeight: 700, fontFamily: F, textAlign: "right", background: C.white, color: C.text }} />
-                        <button onClick={sB} style={{ padding: "6px 10px", borderRadius: 8, background: C.sage, border: "none", color: "#fff", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>✓</button>
-                      </div>
-                    ) : (
-                      <div onClick={() => { setEBgt(true); setBIn(String(bgt.total)); }} style={{ cursor: "pointer", display: "flex", alignItems: "center", gap: 4, justifyContent: "flex-end" }}>
-                        <div style={{ fontSize: 18, fontWeight: 700 }}>{fmt(bgt.total)} RON</div>
-                        <span style={{ fontSize: 11, color: C.primary, fontWeight: 600 }}>✎</span>
-                      </div>
-                    )}
-                    <div style={{ fontSize: 12, color: tS <= bgt.total ? C.sage : C.danger, fontWeight: 600, marginTop: 2 }}>
-                      {tS <= bgt.total ? `${fmt(bgt.total - tS)} remaining` : `${fmt(tS - bgt.total)} over!`}
-                    </div>
-                    <div style={{ fontSize: 10, color: C.textDim }}>≈ {fP(bgt.total)} PLN</div>
-                  </div>
-                </div>
-                <Bar v={tS} mx={bgt.total} color={C.primary} h={10} />
-                <div style={{ display: "flex", justifyContent: "space-between", marginTop: 6, fontSize: 11, color: C.textDim }}>
-                  <span>{Math.round(tS / bgt.total * 100)}% used</span><span>{fmt(bgt.total - tS)} RON left</span>
-                </div>
-              </Card>
-              <Card style={{ padding: 16, marginBottom: 14 }} hover={false}>
-                <div style={{ fontSize: 14, fontWeight: 700, fontFamily: F, marginBottom: 12 }}>By Category</div>
-                {Object.entries(bgt).filter(([k]) => k !== "total").map(([cat, cb]) => {
-                  const sp = cS[cat] || 0;
-                  return <div key={cat} style={{ marginBottom: 10 }}>
-                    <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
-                      <div style={{ display: "flex", alignItems: "center", gap: 6 }}><span style={{ fontSize: 14 }}>{CAT_I[cat]}</span><span style={{ fontSize: 12, fontWeight: 600 }}>{cat}</span></div>
-                      <span style={{ fontSize: 11, color: sp > cb ? C.danger : C.textDim, fontWeight: sp > cb ? 600 : 400 }}>{fmt(sp)} / {fmt(cb)}</span>
-                    </div>
-                    <Bar v={sp} mx={cb} color={CAT_C[cat]} />
-                  </div>;
-                })}
-              </Card>
-              <Card style={{ padding: 16, marginBottom: 14 }} hover={false}>
-                <div style={{ fontSize: 14, fontWeight: 700, fontFamily: F, marginBottom: 12 }}>Expense Split</div>
-                <div style={{ display: "flex", gap: 10, marginBottom: 12 }}>
-                  {[{ n: "Bartek", p: bP, c: C.blue }, { n: "Anna", p: aP, c: C.coral }].map(x => (
-                    <div key={x.n} style={{ flex: 1, padding: 12, background: C.bgAlt, borderRadius: 12, display: "flex", flexDirection: "column", alignItems: "center" }}>
-                      <Av name={x.n} color={x.c} size={36} />
-                      <div style={{ fontSize: 11, color: C.textDim, marginTop: 6 }}>{x.n} paid</div>
-                      <div style={{ fontSize: 17, fontWeight: 800, fontFamily: F }}>{fmt(x.p)} RON</div>
-                      <div style={{ fontSize: 10, color: C.textDim }}>≈ {fP(x.p)} PLN</div>
-                    </div>
-                  ))}
-                </div>
-                {bP !== aP && <div style={{ padding: 12, borderRadius: 12, background: bP > aP ? C.coralLight : C.blueLight, textAlign: "center" }}>
-                  <span style={{ fontSize: 13, fontWeight: 600, color: bP > aP ? C.coral : C.blue }}>
-                    {bP > aP ? `Anna owes Bartek ${fmt(Math.round((bP-aP)/2))} RON (~${fP(Math.round((bP-aP)/2))} PLN)` : `Bartek owes Anna ${fmt(Math.round((aP-bP)/2))} RON`}
-                  </span>
-                </div>}
-              </Card>
-              <Card style={{ overflow: "hidden" }} hover={false}>
-                <div style={{ padding: "12px 16px", borderBottom: `1px solid ${C.borderLight}`, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                  <span style={{ fontSize: 14, fontWeight: 700, fontFamily: F }}>All Expenses ({exps.length})</span>
-                  <button onClick={() => setShowAdd(!showAdd)} style={{ padding: "6px 14px", borderRadius: 99, background: C.primary, border: "none", color: "#fff", fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>+ Add</button>
-                </div>
-                {showAdd && <div style={{ padding: 14, borderBottom: `1px solid ${C.borderLight}`, background: C.bgAlt }}>
-                  <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-                    <input value={nE.name} onChange={e => setNE(p => ({...p, name: e.target.value}))} placeholder="Name" style={{ flex: "1 1 120px", padding: "8px 10px", borderRadius: 8, border: `1.5px solid ${C.border}`, fontSize: 12, fontFamily: "inherit", background: C.white, color: C.text }} />
-                    <input value={nE.amount} onChange={e => setNE(p => ({...p, amount: e.target.value}))} placeholder="RON" type="number" style={{ flex: "0 1 80px", padding: "8px 10px", borderRadius: 8, border: `1.5px solid ${C.border}`, fontSize: 12, fontFamily: "inherit", background: C.white, color: C.text }} />
-                    <select value={nE.cat} onChange={e => setNE(p => ({...p, cat: e.target.value}))} style={{ flex: "0 1 110px", padding: "8px 10px", borderRadius: 8, border: `1.5px solid ${C.border}`, fontSize: 12, fontFamily: "inherit", background: C.white, color: C.text }}>{Object.keys(CAT_C).map(c => <option key={c}>{c}</option>)}</select>
-                    <select value={nE.payer} onChange={e => setNE(p => ({...p, payer: e.target.value}))} style={{ flex: "0 1 90px", padding: "8px 10px", borderRadius: 8, border: `1.5px solid ${C.border}`, fontSize: 12, fontFamily: "inherit", background: C.white, color: C.text }}><option>Bartek</option><option>Anna</option></select>
-                    <button onClick={addE} style={{ padding: "8px 16px", borderRadius: 8, background: C.sage, border: "none", color: "#fff", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>Save</button>
-                  </div>
-                </div>}
-                {exps.map(e => (
-                  <div key={e.id} style={{ padding: "10px 16px", display: "flex", alignItems: "center", gap: 10, borderBottom: `1px solid ${C.borderLight}` }}
-                    onMouseEnter={ev => ev.currentTarget.style.background = C.surfaceHover} onMouseLeave={ev => ev.currentTarget.style.background = "transparent"}>
-                    <div style={{ width: 32, height: 32, borderRadius: 8, background: `${CAT_C[e.cat]}15`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 15 }}>{CAT_I[e.cat]}</div>
-                    <div style={{ flex: 1 }}>
-                      <div style={{ fontSize: 13, fontWeight: 500 }}>{e.name}</div>
-                      <div style={{ fontSize: 11, color: C.textDim }}>{e.cat} · {e.date} · {e.payer}</div>
-                    </div>
-                    <div style={{ textAlign: "right" }}>
-                      <div style={{ fontSize: 13, fontWeight: 700 }}>{fmt(e.amount)} RON</div>
-                      <div style={{ fontSize: 10, color: C.textDim }}>~{fP(e.amount)} PLN</div>
-                    </div>
-                  </div>
-                ))}
-              </Card>
-            </div>}
-
-            {/* CHAT TAB */}
-            {tab === "chat" && <Card style={{ overflow: "hidden" }} hover={false}>
-              <div style={{ padding: "12px 16px", borderBottom: `1px solid ${C.borderLight}`, background: C.bgAlt }}>
-                <div style={{ fontSize: 14, fontWeight: 700, fontFamily: F }}>Trip Chat — {TRIP.name}</div>
-                <div style={{ fontSize: 11, color: C.textDim }}>Bartek & Anna · {cM.length} messages</div>
-              </div>
-              <div style={{ height: 400, overflow: "auto", padding: 14, display: "flex", flexDirection: "column", gap: 10 }}>
-                {cM.map((m, i) => (
-                  <div key={i} style={{ display: "flex", gap: 8, flexDirection: m.from === "Bartek" ? "row-reverse" : "row" }}>
-                    <Av name={m.from} color={m.color} size={28} />
-                    <div style={{ maxWidth: "75%" }}>
-                      <div style={{ fontSize: 10, color: C.textDim, marginBottom: 2, textAlign: m.from === "Bartek" ? "right" : "left" }}>{m.from} · {m.time}</div>
-                      <div style={{ padding: "9px 14px", borderRadius: 14, fontSize: 13, lineHeight: 1.5, background: m.from === "Bartek" ? C.blue : C.white, color: m.from === "Bartek" ? "#fff" : C.text, border: m.from !== "Bartek" ? `1px solid ${C.borderLight}` : "none", borderBottomRightRadius: m.from === "Bartek" ? 4 : 14, borderBottomLeftRadius: m.from !== "Bartek" ? 4 : 14 }}>{m.text}</div>
-                    </div>
-                  </div>
+                    ))}
+                  </Card>
                 ))}
               </div>
-              <div style={{ padding: "10px 14px", borderTop: `1px solid ${C.borderLight}`, display: "flex", gap: 8 }}>
-                <input value={cI} onChange={e => setCI(e.target.value)} onKeyDown={e => e.key === "Enter" && sChat()} placeholder="Message..."
-                  style={{ flex: 1, padding: "10px 14px", borderRadius: 12, border: `1.5px solid ${C.border}`, fontSize: 13, fontFamily: "inherit", background: C.bg, color: C.text }} />
-                <button onClick={sChat} style={{ padding: "10px 16px", borderRadius: 12, background: C.blue, border: "none", color: "#fff", cursor: "pointer", fontWeight: 600, fontSize: 13, fontFamily: "inherit" }}>Send</button>
-              </div>
-            </Card>}
+            )}
 
-            {/* BOOKING TAB */}
-            {tab === "booking" && <div>
-              <Card style={{ padding: 16, marginBottom: 14 }} hover={false}>
-                <div style={{ fontSize: 14, fontWeight: 700, fontFamily: F, marginBottom: 10 }}>Find & Book</div>
-                <div style={{ display: "flex", gap: 8 }}>
-                  <input value={bSrch} onChange={e => setBSrch(e.target.value)} placeholder="Search hotels, activities, restaurants..."
-                    style={{ flex: 1, padding: "10px 14px", borderRadius: 10, border: `1.5px solid ${C.border}`, fontSize: 13, fontFamily: "inherit", background: C.bg, color: C.text }} />
-                  <button style={{ padding: "10px 18px", borderRadius: 10, background: C.primary, border: "none", color: "#fff", fontWeight: 600, cursor: "pointer", fontFamily: "inherit", fontSize: 13 }}>Search</button>
-                </div>
-                <div style={{ display: "flex", gap: 6, marginTop: 10, flexWrap: "wrap" }}>
-                  {["🏨 Hotels", "✈️ Flights", "🎟️ Activities", "🍽️ Restaurants", "🚗 Transfers"].map(t => <Pill key={t} onClick={() => {}}>{t}</Pill>)}
-                </div>
-              </Card>
-
-              <div style={{ fontSize: 12, fontWeight: 700, color: C.textDim, marginBottom: 10, textTransform: "uppercase", letterSpacing: 1 }}>Recommended for your trip</div>
-              {DEALS.map((d, i) => (
-                <Card key={i} style={{ marginBottom: 10, overflow: "hidden" }} onClick={() => window.open(d.url, "_blank")}>
-                  <div style={{ display: "flex" }}>
-                    <div style={{ flex: "0 0 90px", position: "relative" }}>
-                      <Img src={d.img} alt={d.name} style={{ width: "100%", height: "100%", minHeight: 110 }} />
-                    </div>
-                    <div style={{ flex: 1, padding: 14 }}>
-                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 6 }}>
-                        <div>
-                          <div style={{ fontSize: 13, fontWeight: 700, lineHeight: 1.3 }}>{d.name}</div>
-                          <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 3 }}>
-                            <span style={{ fontSize: 10, fontWeight: 700, color: "#fff", background: d.pColor, padding: "2px 6px", borderRadius: 4 }}>{d.partner}</span>
-                            <span style={{ fontSize: 11, color: C.textDim }}>{d.type}</span>
+            {/* ══ BUDGET ══ */}
+            {tab === "budget" && (() => {
+              const tS = (trip.expenses || []).reduce((s, e) => s + e.amount, 0);
+              const bT = trip.budget?.total || 1;
+              return (
+                <div>
+                  <Card style={{ padding: 20, marginBottom: 14, background: `linear-gradient(135deg, ${C.primaryLight}, ${C.white})` }} hover={false}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 14 }}>
+                      <div>
+                        <div style={{ fontSize: 11, color: C.textDim, textTransform: "uppercase", letterSpacing: 1, fontWeight: 600 }}>Spent</div>
+                        <div style={{ fontSize: 28, fontWeight: 800, fontFamily: F }}>{fmt(tS)} <span style={{ fontSize: 14, color: C.textSec }}>RON</span></div>
+                      </div>
+                      <div style={{ textAlign: "right" }}>
+                        <div style={{ fontSize: 11, color: C.textDim, fontWeight: 600, marginBottom: 2 }}>BUDGET</div>
+                        {eBgt && canEdit ? (
+                          <div style={{ display: "flex", gap: 4 }}>
+                            <input value={bIn} onChange={e => setBIn(e.target.value)} autoFocus type="number" onKeyDown={e => { if (e.key === "Enter") { const v = parseInt(bIn); if (v > 0) updateTrip(trip.id, t => ({ ...t, budget: { ...t.budget, total: v } })); setEBgt(false); }}}
+                              style={{ width: 80, padding: "5px 8px", borderRadius: 8, border: `1.5px solid ${C.primary}`, fontSize: 14, fontWeight: 700, fontFamily: F, textAlign: "right", background: C.white }} />
+                            <button onClick={() => { const v = parseInt(bIn); if (v > 0) updateTrip(trip.id, t => ({ ...t, budget: { ...t.budget, total: v } })); setEBgt(false); }} style={{ padding: "5px 10px", borderRadius: 8, background: C.sage, border: "none", color: "#fff", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>✓</button>
                           </div>
+                        ) : (
+                          <div onClick={canEdit ? () => { setEBgt(true); setBIn(String(trip.budget?.total || 0)); } : undefined} style={{ cursor: canEdit ? "pointer" : "default", display: "flex", alignItems: "center", gap: 4, justifyContent: "flex-end" }}>
+                            <span style={{ fontSize: 16, fontWeight: 700 }}>{fmt(bT)} RON</span>
+                            {canEdit && <span style={{ fontSize: 11, color: C.primary }}>✎</span>}
+                          </div>
+                        )}
+                        <div style={{ fontSize: 12, color: tS <= bT ? C.sage : C.danger, fontWeight: 600, marginTop: 2 }}>{tS <= bT ? `${fmt(bT - tS)} left` : `${fmt(tS - bT)} over!`}</div>
+                      </div>
+                    </div>
+                    <Bar v={tS} mx={bT} color={C.primary} h={8} />
+                  </Card>
+                  {(trip.expenses || []).length > 0 && (
+                    <Card style={{ overflow: "hidden" }} hover={false}>
+                      <div style={{ padding: "10px 16px", borderBottom: `1px solid ${C.borderLight}`, fontSize: 13, fontWeight: 700, fontFamily: F }}>Expenses ({trip.expenses.length})</div>
+                      {trip.expenses.map(e => (
+                        <div key={e.id} style={{ padding: "10px 16px", display: "flex", alignItems: "center", gap: 10, borderBottom: `1px solid ${C.borderLight}` }}>
+                          <span style={{ fontSize: 15 }}>{CAT_I[e.cat] || "💰"}</span>
+                          <div style={{ flex: 1 }}><div style={{ fontSize: 13, fontWeight: 500 }}>{e.name}</div><div style={{ fontSize: 11, color: C.textDim }}>{e.cat} · {e.date}</div></div>
+                          <div style={{ fontSize: 13, fontWeight: 700 }}>{fmt(e.amount)} RON</div>
                         </div>
-                        <div style={{ textAlign: "right", flexShrink: 0 }}>
-                          <div style={{ fontSize: 15, fontWeight: 800, color: C.primary, fontFamily: F }}>{d.price}</div>
-                          <div style={{ fontSize: 10, color: C.gold }}>★ {d.rating}</div>
+                      ))}
+                    </Card>
+                  )}
+                </div>
+              );
+            })()}
+
+            {/* ══ JOURNAL ══ */}
+            {tab === "journal" && (
+              <div>
+                {canEdit && (
+                  <Card style={{ padding: 16, marginBottom: 14 }} hover={false}>
+                    <div style={{ display: "flex", gap: 10, alignItems: "flex-start" }}>
+                      <Av name={currentUser.name} color={currentUser.color} size={32} />
+                      <div style={{ flex: 1 }}>
+                        <textarea value={journalInput} onChange={e => setJournalInput(e.target.value)} placeholder="Write a memory, thought, or note..." rows={3}
+                          style={{ width: "100%", padding: "10px 14px", borderRadius: 12, border: `1.5px solid ${C.border}`, fontSize: 13, fontFamily: "inherit", resize: "vertical", background: C.bg, color: C.text }} />
+                        <div style={{ display: "flex", justifyContent: "space-between", marginTop: 8 }}>
+                          <div style={{ display: "flex", gap: 8 }}>
+                            <button style={{ padding: "6px 12px", borderRadius: 8, background: C.bgAlt, border: `1px solid ${C.border}`, fontSize: 11, cursor: "pointer", fontFamily: "inherit", color: C.textSec }}>📷 Photo</button>
+                            <button style={{ padding: "6px 12px", borderRadius: 8, background: C.bgAlt, border: `1px solid ${C.border}`, fontSize: 11, cursor: "pointer", fontFamily: "inherit", color: C.textSec }}>🎥 Video</button>
+                          </div>
+                          <button onClick={() => { if (!journalInput.trim()) return; updateTrip(trip.id, t => ({ ...t, journal: [...t.journal, { id: "j" + Date.now(), date: "Now", author: currentUser.id, type: "text", content: journalInput }] })); setJournalInput(""); }}
+                            style={{ padding: "8px 18px", borderRadius: 10, background: C.primary, border: "none", color: "#fff", fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>Post</button>
                         </div>
                       </div>
-                      <p style={{ fontSize: 12, color: C.textSec, marginTop: 6, lineHeight: 1.4 }}>{d.desc}</p>
-                      <div style={{ marginTop: 8, fontSize: 12, fontWeight: 600, color: C.primary }}>View on {d.partner} →</div>
                     </div>
-                  </div>
-                </Card>
-              ))}
+                  </Card>
+                )}
+                {(trip.journal || []).length === 0 ? (
+                  <Card style={{ padding: 32, textAlign: "center" }} hover={false}><div style={{ fontSize: 40, marginBottom: 12 }}>📓</div><div style={{ fontSize: 16, fontWeight: 700, fontFamily: F }}>Your trip journal</div><p style={{ fontSize: 13, color: C.textSec, marginTop: 6 }}>Notes, photos, videos — your keepsake.</p></Card>
+                ) : [...trip.journal].reverse().map(j => {
+                  const a = getUser(j.author);
+                  return (
+                    <Card key={j.id} style={{ padding: 16, marginBottom: 10 }} hover={false}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 8 }}>
+                        <Av name={a.name} color={a.color} size={28} />
+                        <span style={{ fontSize: 13, fontWeight: 600 }}>{a.name}</span>
+                        <span style={{ fontSize: 11, color: C.textDim }}>{j.date}</span>
+                      </div>
+                      <p style={{ fontSize: 13, color: C.textSec, lineHeight: 1.6 }}>{j.content}</p>
+                    </Card>
+                  );
+                })}
+              </div>
+            )}
 
-              <div style={{ fontSize: 12, fontWeight: 700, color: C.textDim, margin: "18px 0 10px", textTransform: "uppercase", letterSpacing: 1 }}>Community Reviews</div>
-              {REVIEWS.map((r, i) => (
-                <Card key={i} style={{ marginBottom: 10, padding: 14 }} hover={false}>
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
-                    <span style={{ fontSize: 13, fontWeight: 700 }}>{r.place}</span>
-                    <span style={{ fontSize: 12, color: C.gold }}>{"★".repeat(r.rating)}{"☆".repeat(5-r.rating)} <span style={{ color: C.text, fontWeight: 600 }}>{r.rating}</span></span>
-                  </div>
-                  <p style={{ fontSize: 12, color: C.textSec, lineHeight: 1.5, marginBottom: 6, fontStyle: "italic" }}>"{r.text}"</p>
-                  <div style={{ fontSize: 11, color: C.textDim }}>— {r.author} · {r.date}</div>
-                </Card>
-              ))}
-            </div>}
+            {/* ══ BOOKING ══ */}
+            {tab === "booking" && (
+              <div>
+                {(trip.deals || []).length > 0 ? trip.deals.map((d, i) => (
+                  <Card key={i} style={{ padding: 14, marginBottom: 10 }} onClick={() => window.open(d.url, "_blank")}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                      <div>
+                        <div style={{ fontSize: 13, fontWeight: 700 }}>{d.name}</div>
+                        <span style={{ fontSize: 10, fontWeight: 700, color: "#fff", background: d.pColor, padding: "2px 6px", borderRadius: 4, marginTop: 4, display: "inline-block" }}>{d.partner}</span>
+                      </div>
+                      <div style={{ textAlign: "right" }}>
+                        <div style={{ fontSize: 15, fontWeight: 800, color: C.primary, fontFamily: F }}>{d.price}</div>
+                        <div style={{ fontSize: 12, color: C.primary, marginTop: 2 }}>View →</div>
+                      </div>
+                    </div>
+                  </Card>
+                )) : <Card style={{ padding: 32, textAlign: "center" }} hover={false}><div style={{ fontSize: 40, marginBottom: 12 }}>🔖</div><div style={{ fontSize: 16, fontWeight: 700, fontFamily: F }}>Booking recommendations</div><p style={{ fontSize: 13, color: C.textSec, marginTop: 6 }}>AI will suggest deals based on your itinerary.</p></Card>}
+              </div>
+            )}
 
           </div>
         </div>
       )}
+
+      {/* ═══ MODALS ═══ */}
+
+      {/* Trip Wizard */}
+      <Modal open={showWizard} onClose={() => { setShowWizard(false); setWizStep(0); }} title={["Where are you going?", "When & who?", "Almost there!"][wizStep]}>
+        {wizStep === 0 && <div>
+          <input value={wizData.dest} onChange={e => setWizData(p => ({ ...p, dest: e.target.value }))} placeholder="Destination — e.g. Barcelona, Kyoto..." autoFocus
+            style={{ width: "100%", padding: "14px 16px", borderRadius: 12, border: `1.5px solid ${C.border}`, fontSize: 15, fontFamily: "inherit", background: C.bg, color: C.text, marginBottom: 12 }} />
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 16 }}>
+            {["Barcelona", "Kyoto", "Reykjavik", "Marrakech", "Vienna", "Bali"].map(d => <Pill key={d} onClick={() => setWizData(p => ({ ...p, dest: d }))} active={wizData.dest === d}>{d}</Pill>)}
+          </div>
+          <button disabled={!wizData.dest} onClick={() => setWizStep(1)} style={{ width: "100%", padding: "14px", borderRadius: 12, background: wizData.dest ? C.primary : C.border, border: "none", color: "#fff", fontSize: 14, fontWeight: 700, cursor: wizData.dest ? "pointer" : "default", fontFamily: "inherit" }}>Next →</button>
+        </div>}
+        {wizStep === 1 && <div>
+          <div style={{ display: "flex", gap: 10, marginBottom: 12 }}>
+            <div style={{ flex: 1 }}><label style={{ fontSize: 11, color: C.textDim, fontWeight: 600, display: "block", marginBottom: 4 }}>From</label><input type="date" value={wizData.startDate} onChange={e => setWizData(p => ({ ...p, startDate: e.target.value }))} style={{ width: "100%", padding: "10px 12px", borderRadius: 10, border: `1.5px solid ${C.border}`, fontSize: 13, fontFamily: "inherit", background: C.bg, color: C.text }} /></div>
+            <div style={{ flex: 1 }}><label style={{ fontSize: 11, color: C.textDim, fontWeight: 600, display: "block", marginBottom: 4 }}>To</label><input type="date" value={wizData.endDate} onChange={e => setWizData(p => ({ ...p, endDate: e.target.value }))} style={{ width: "100%", padding: "10px 12px", borderRadius: 10, border: `1.5px solid ${C.border}`, fontSize: 13, fontFamily: "inherit", background: C.bg, color: C.text }} /></div>
+          </div>
+          <label style={{ fontSize: 11, color: C.textDim, fontWeight: 600, display: "block", marginBottom: 4 }}>Travelers</label>
+          <div style={{ display: "flex", gap: 6, marginBottom: 12 }}>{[1, 2, 3, 4, 5, "6+"].map(n => <Pill key={n} active={wizData.travelers === n} onClick={() => setWizData(p => ({ ...p, travelers: n }))}>{n}</Pill>)}</div>
+          <label style={{ fontSize: 11, color: C.textDim, fontWeight: 600, display: "block", marginBottom: 4 }}>Travel style</label>
+          <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 16 }}>
+            {["Cultural", "Adventure", "Relaxation", "Foodie", "Road Trip", "City Break"].map(s => <Pill key={s} active={wizData.style === s} onClick={() => setWizData(p => ({ ...p, style: s }))}>{s}</Pill>)}
+          </div>
+          <div style={{ display: "flex", gap: 8 }}>
+            <button onClick={() => setWizStep(0)} style={{ flex: 1, padding: "12px", borderRadius: 12, background: C.bgAlt, border: `1px solid ${C.border}`, fontSize: 13, cursor: "pointer", fontFamily: "inherit", color: C.textSec }}>← Back</button>
+            <button onClick={() => setWizStep(2)} style={{ flex: 2, padding: "12px", borderRadius: 12, background: C.primary, border: "none", color: "#fff", fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>Next →</button>
+          </div>
+        </div>}
+        {wizStep === 2 && <div>
+          <input value={wizData.name} onChange={e => setWizData(p => ({ ...p, name: e.target.value }))} placeholder={`e.g. "${wizData.dest} Adventure"`}
+            style={{ width: "100%", padding: "14px 16px", borderRadius: 12, border: `1.5px solid ${C.border}`, fontSize: 15, fontFamily: "inherit", background: C.bg, color: C.text, marginBottom: 16 }} />
+          <Card style={{ padding: 16, marginBottom: 16, background: C.bgAlt }} hover={false}>
+            <div style={{ fontSize: 12, fontWeight: 700, color: C.textDim, marginBottom: 8 }}>TRIP SUMMARY</div>
+            <div style={{ fontSize: 14, fontWeight: 700, fontFamily: F, marginBottom: 4 }}>{wizData.name || `${wizData.dest} Trip`}</div>
+            <div style={{ fontSize: 12, color: C.textSec }}>📍 {wizData.dest} · 📅 {wizData.startDate || "TBD"} – {wizData.endDate || "TBD"} · 👥 {wizData.travelers} · 🎯 {wizData.style}</div>
+          </Card>
+          <div style={{ display: "flex", gap: 8 }}>
+            <button onClick={() => setWizStep(1)} style={{ flex: 1, padding: "12px", borderRadius: 12, background: C.bgAlt, border: `1px solid ${C.border}`, fontSize: 13, cursor: "pointer", fontFamily: "inherit", color: C.textSec }}>← Back</button>
+            <button onClick={createTrip} style={{ flex: 2, padding: "14px", borderRadius: 12, background: `linear-gradient(135deg, ${C.primary}, ${C.coral})`, border: "none", color: "#fff", fontSize: 14, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>🚀 Create Trip</button>
+          </div>
+        </div>}
+      </Modal>
+
+      {/* Invite */}
+      <Modal open={showInvite} onClose={() => setShowInvite(false)} title="Invite to Trip">
+        <label style={{ fontSize: 11, color: C.textDim, fontWeight: 600, display: "block", marginBottom: 4 }}>Email address</label>
+        <input value={invEmail} onChange={e => setInvEmail(e.target.value)} placeholder="friend@email.com" style={{ width: "100%", padding: "12px 14px", borderRadius: 10, border: `1.5px solid ${C.border}`, fontSize: 13, fontFamily: "inherit", background: C.bg, color: C.text, marginBottom: 12 }} />
+        <label style={{ fontSize: 11, color: C.textDim, fontWeight: 600, display: "block", marginBottom: 6 }}>Role</label>
+        {[
+          { id: "companion", title: "Companion", desc: "Can edit itinerary, budget, journal. Full co-planner.", icon: "🤝" },
+          { id: "observer", title: "Observer", desc: "View-only. Can see plans and get inspired.", icon: "👁️" },
+        ].map(r => (
+          <div key={r.id} onClick={() => setInvRole(r.id)} style={{ padding: 14, borderRadius: 12, border: `1.5px solid ${invRole === r.id ? C.primary : C.border}`, marginBottom: 8, cursor: "pointer", background: invRole === r.id ? C.primaryLight : "transparent" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <span style={{ fontSize: 18 }}>{r.icon}</span>
+              <div><div style={{ fontSize: 13, fontWeight: 600 }}>{r.title}</div><div style={{ fontSize: 11, color: C.textSec }}>{r.desc}</div></div>
+            </div>
+          </div>
+        ))}
+        <button onClick={() => { setShowInvite(false); setInvEmail(""); }} style={{ width: "100%", marginTop: 8, padding: "14px", borderRadius: 12, background: C.primary, border: "none", color: "#fff", fontSize: 14, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>Send Invitation</button>
+      </Modal>
+
+      {/* Profile */}
+      <Modal open={showProfile} onClose={() => setShowProfile(false)} title="My Profile" wide>
+        <div style={{ display: "flex", alignItems: "center", gap: 16, marginBottom: 20 }}>
+          <Av name={currentUser.name} color={currentUser.color} size={56} />
+          <div>
+            <div style={{ fontSize: 18, fontWeight: 800, fontFamily: F }}>{currentUser.name}</div>
+            <div style={{ fontSize: 12, color: C.textSec }}>{currentUser.email}</div>
+            <span style={{ fontSize: 10, fontWeight: 700, color: ROLES[currentUser.role].color, background: `${ROLES[currentUser.role].color}15`, padding: "3px 10px", borderRadius: 99, textTransform: "uppercase", marginTop: 4, display: "inline-block" }}>{ROLES[currentUser.role].label}</span>
+          </div>
+        </div>
+        <div style={{ fontSize: 14, fontWeight: 700, fontFamily: F, marginBottom: 10 }}>Travel Preferences</div>
+        {currentUser.prefs && Object.entries(currentUser.prefs).map(([k, v]) => (
+          <div key={k} style={{ display: "flex", justifyContent: "space-between", padding: "10px 0", borderBottom: `1px solid ${C.borderLight}` }}>
+            <span style={{ fontSize: 12, color: C.textDim, textTransform: "capitalize" }}>{k.replace(/([A-Z])/g, ' $1')}</span>
+            <span style={{ fontSize: 12, fontWeight: 600 }}>{Array.isArray(v) ? v.join(", ") : v}</span>
+          </div>
+        ))}
+        <div style={{ fontSize: 14, fontWeight: 700, fontFamily: F, margin: "20px 0 10px" }}>Trip Stats</div>
+        <div style={{ display: "flex", gap: 10 }}>
+          {[{ label: "Total trips", value: trips.filter(t => t.travelers.includes(currentUser.id)).length }, { label: "Countries", value: 3 }, { label: "Days traveled", value: 13 }].map(s => (
+            <div key={s.label} style={{ flex: 1, padding: 12, background: C.bgAlt, borderRadius: 12, textAlign: "center" }}>
+              <div style={{ fontSize: 20, fontWeight: 800, fontFamily: F, color: C.primary }}>{s.value}</div>
+              <div style={{ fontSize: 10, color: C.textDim }}>{s.label}</div>
+            </div>
+          ))}
+        </div>
+        <div style={{ fontSize: 14, fontWeight: 700, fontFamily: F, margin: "20px 0 10px" }}>Permissions ({ROLES[currentUser.role].label})</div>
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+          {ROLES[currentUser.role].perms.map(p => <span key={p} style={{ padding: "5px 12px", borderRadius: 99, background: C.sageLight, fontSize: 11, fontWeight: 500, color: C.sage }}>✓ {p.replace(/_/g, ' ')}</span>)}
+        </div>
+        <button onClick={() => { setLoggedIn(false); setCurrentUser(null); setScr("home"); setActiveTrip(null); setShowProfile(false); }}
+          style={{ width: "100%", marginTop: 20, padding: "12px", borderRadius: 12, background: C.bgAlt, border: `1px solid ${C.danger}33`, color: C.danger, fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>Sign Out</button>
+      </Modal>
+
+      {/* Travelers Modal */}
+      <Modal open={showTravelers} onClose={() => setShowTravelers(false)} title="Trip Members" wide>
+        {trip && <>
+          <div style={{ fontSize: 12, fontWeight: 700, color: C.textDim, marginBottom: 8, textTransform: "uppercase", letterSpacing: 1 }}>Travelers ({trip.travelers.length})</div>
+          {trip.travelers.map(uid => {
+            const u = getUser(uid);
+            const r = uid === "u1" ? "admin" : "user";
+            return (
+              <div key={uid} style={{ padding: "12px 0", display: "flex", alignItems: "center", gap: 12, borderBottom: `1px solid ${C.borderLight}` }}>
+                <Av name={u.name} color={u.color} size={36} />
+                <div style={{ flex: 1 }}><div style={{ fontSize: 13, fontWeight: 600 }}>{u.name}</div><div style={{ fontSize: 11, color: C.textDim }}>{u.email}</div></div>
+                <span style={{ fontSize: 10, fontWeight: 700, color: ROLES[r].color, background: `${ROLES[r].color}15`, padding: "3px 10px", borderRadius: 99, textTransform: "uppercase" }}>{ROLES[r].label}</span>
+              </div>
+            );
+          })}
+          {(trip.observers || []).length > 0 && <>
+            <div style={{ fontSize: 12, fontWeight: 700, color: C.textDim, marginTop: 16, marginBottom: 8, textTransform: "uppercase", letterSpacing: 1 }}>Observers ({trip.observers.length})</div>
+            {trip.observers.map(uid => {
+              const u = getUser(uid);
+              return (
+                <div key={uid} style={{ padding: "12px 0", display: "flex", alignItems: "center", gap: 12, borderBottom: `1px solid ${C.borderLight}` }}>
+                  <Av name={u.name} color={u.color} size={36} />
+                  <div style={{ flex: 1 }}><div style={{ fontSize: 13, fontWeight: 600 }}>{u.name}</div><div style={{ fontSize: 11, color: C.textDim }}>{u.email}</div></div>
+                  <span style={{ fontSize: 10, fontWeight: 700, color: ROLES.observer.color, background: `${ROLES.observer.color}15`, padding: "3px 10px", borderRadius: 99, textTransform: "uppercase" }}>Observer</span>
+                </div>
+              );
+            })}
+          </>}
+          {canEdit && <button onClick={() => { setShowTravelers(false); setShowInvite(true); }} style={{ width: "100%", marginTop: 16, padding: "12px", borderRadius: 12, background: C.primary, border: "none", color: "#fff", fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>+ Invite Someone</button>}
+        </>}
+      </Modal>
     </div>
   );
 }
