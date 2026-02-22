@@ -1,31 +1,23 @@
-# Ventura — Travel Planning App
-
-Interactive prototype of **Ventura**, an intelligent travel companion.
+# Ventura v4 — Travel Planning App
 
 ## Quick Start
-
-```bash
+```
 npm install
 npm run dev
 ```
 
-Open http://localhost:5173
-
 ## Deploy to Vercel
-
-1. Push to GitHub
-2. Import at [vercel.com/new](https://vercel.com/new)
-3. Vercel auto-detects Vite — click Deploy
+Push to GitHub → Import at vercel.com/new → Auto-detects Vite → Deploy
 
 ## Features
-
-- Home screen with trip library & photo carousels
-- 3-step trip creation wizard
-- Day-by-day itinerary with collapsible days
-- Smart packing lists with AI suggestions & reusable templates
-- Editable budget tracker with pie chart breakdown
-- Trip journal for notes, photos, videos
-- Stay comparison (Booking.com / Airbnb links)
-- Role-based access: Admin, Traveler, Companion, Observer, Guest
-- User profiles with social media links
-- Trip memories & recap for past trips
+- Swipeable photo carousels (touch + click)
+- Editable packing lists with templates, save/load & AI suggestions
+- "Don't forget" checklist reminders
+- Editable expenses with category, amount & currency
+- Budget with fintech-style pie chart & spending insights
+- Exchange rate info (home currency ↔ destination)
+- Delete planning/upcoming trips
+- User profiles with photo URL & social media links
+- Compare stays (Booking.com / Airbnb) with proposer attribution
+- Role-based access: Admin, Traveler, Companion, Observer
+- Trip journal, memories, day-by-day itinerary
